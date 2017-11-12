@@ -1,0 +1,45 @@
+{
+  "manifest_version": 2,
+
+  "name": "dicom-viewer",
+  "description": "This extension allows the user to view dicom image",
+  "version": "1.0",
+
+  "content_scripts": [
+      {
+        "matches": [
+          "*://*/*"
+        ],
+        "js": ["contentScript.js"],
+        "run_at": "document_end"
+      }
+  ],
+  "background": {
+      "scripts": [
+        "background.js"
+      ]
+  },
+  "icons": { "16": "icon16.png",
+    "48": "icon48.png",
+   "128": "icon128.png" },
+
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "Dicom viewer"
+  },
+  "web_accessible_resources": [
+     "dicom.html"
+  ],
+
+  "permissions": [
+    "history",
+    "background","downloads",
+    "activeTab",
+    "storage",
+    "tabs",
+    "*://*/*",
+    "<all_urls>",
+    "webRequest",
+    "webRequestBlocking"
+  ]
+}
