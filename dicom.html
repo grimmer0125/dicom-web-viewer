@@ -2,11 +2,13 @@
 <html>
   <head>
     <title>Dicom Viewer</title>
+    <script src="daikon-min.js"></script>
   </head>
 
   <body>
     <h1>This is very minimal "dicom viewer" HTML document.</h1>
-    <div id="content"></div>
+    <div id="file"></div>
+    <canvas id="myCanvas" width="512" height="512"></canvas>
 
     <!--
       - JavaScript and HTML must be in separate files: see our Content Security
