@@ -42,6 +42,9 @@ function fetchLocalFile(url) {
 
       // Create context from canvas
       const c = document.getElementById("myCanvas");
+      c.width = width;
+      c.height = height;
+
       const ctx = c.getContext("2d"); 
 
       // Create ImageData object
@@ -78,7 +81,6 @@ if (url.indexOf('file://') != -1  &&
   if (paths.length > 1){
     const filePath = paths[1];
     console.log("dicom html loads, after hash:", filePath);
-
     document.getElementById("file").innerHTML = filePath;
     fetchLocalFile(filePath)
   }
