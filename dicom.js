@@ -4,7 +4,7 @@ function fetchLocalFile(url) {
   xhr.open('GET', url, true);
   xhr.responseType = "arraybuffer";
   xhr.onload = function(e) {
-    console.log("e:", e) // ProgressEvent
+    // console.log("e:", e) // ProgressEvent
 
     const arrayBuffer = xhr.response; // Note: not xhr.responseText
     if (arrayBuffer) {
@@ -18,7 +18,7 @@ function fetchLocalFile(url) {
       const height= obj.numRows;
 
       // little endian type of dicom data seems to be unit16, http://rii.uthscsa.edu/mango/papaya/ shows 2 byte  
-      // obj.data: float32, length:262144 = 512x512  
+      // obj.data: float32, length:262144 (if dicom image is 512x512) 
       // NOTE: 32bit -> 8 bit (use min/max to normalize to 0~255 from -1000~1000） 
       let max = obj.data[0]; 
       let min = obj.data[0]
@@ -38,7 +38,6 @@ function fetchLocalFile(url) {
       for (let i = 0; i< obj.data.length; i++) {
         array[i] = (obj.data[i]-min)*255/delta;
       }
-      // const array = new Uint8ClampedArray(obj.data); // we got 512x512 length, not 512x512x2 
 
       // Create context from canvas
       const c = document.getElementById("myCanvas");
@@ -50,7 +49,7 @@ function fetchLocalFile(url) {
       // Create ImageData object
       const imgData = ctx.createImageData(width, height); 
       const data = imgData.data; // width x height x 4 (RGBA), Uint8ClampedArray
-      console.log(data.byteLength) //1048576 = 512*512*4
+      console.log(data.byteLength)
       
       for (let i = 0, k = 0; i < data.byteLength; i=i+4, k=k+1) {
         data[i] = array[k];
@@ -59,20 +58,18 @@ function fetchLocalFile(url) {
         data[i+3] = 255;
       }
 
-      console.log("fill data to ctx's imagedata done, then draw")
-      // now we can draw our imagedata onto the canvas
+      // console.log("fill data to ctx's imagedata done, then draw our imagedata onto the canvas")
       ctx.putImageData(imgData, 0, 0);
-      console.log("done")
     }
   }
 
   xhr.send();
 }
 
-// get file key from current url, e.g.
-// chrome-extension://jfnlfimghfiagibfigmlopnfljpfnnje/dicom.html#file:///Users/grimmer/git/itri/itri3.dcm
+// get file path from current url, e.g.
+// chrome-extension://jfnlfimghfiagibfigmlopnfljpfnnje/dicom.html#file:///tmp/test.dcm
 const url =  window.location.href;
-console.log("current url:", url);
+// console.log("current url:", url);
 
 if (url.indexOf('file://') != -1  &&
     url.indexOf('.dcm') != -1 ) {
@@ -80,7 +77,7 @@ if (url.indexOf('file://') != -1  &&
   const paths = url.split("#");
   if (paths.length > 1){
     const filePath = paths[1];
-    console.log("dicom html loads, after hash:", filePath);
+    // console.log("dicom html loads, after hash:", filePath);
     document.getElementById("file").innerHTML = filePath;
     fetchLocalFile(filePath)
   }
