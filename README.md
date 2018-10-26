@@ -1,18 +1,28 @@
-# Dicom Image Viewer
+# DICOM Image Viewer
 
-## Install 
+## Install from Chrome Web Store
 
-Install extension from [Chrome Web Store](https://chrome.google.com/webstore/category/extensions) 
+The extension is submitting and waitting for reviewing. 
 
-## After Install
+## Install locally to develop or test 
 
-1. Navigate to `chrome://extensions`
+Ref: https://developer.chrome.com/extensions/getstarted
+
+1. Open the Extension Management page by navigating to `chrome://extensions`.
+    - The Extension Management page can also be opened by clicking on the Chrome menu, hovering over `More Tools` then selecting `Extensions`.
+2. Enable Developer Mode by clicking the toggle switch next to Developer mode.
+3. Click the LOAD UNPACKED button and select the extension directory.
+
+## After Installing 
+
+1. Open the Extension Management page by navigating to `chrome://extensions`.
 2. Locate DICOM Image Viewer and click on the `DETAILS` button
-3. Make sure that the `Allow access to file URLs` switch is turned on
+3. Turn `Allow access to file URLs` switch on. 
 
 ## Usage
 
-Just drag your dicom files into Chrome browser 
+Just drag your DICOM files into Chrome browser 
+
 
 
 
