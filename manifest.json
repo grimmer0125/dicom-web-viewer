@@ -14,7 +14,7 @@
    "128": "icon128.png" },
 
   "browser_action": {
-    "default_title": "Dicom image viewer"
+    "default_title": "DICOM image viewer"
   },
   "web_accessible_resources": [
      "dicom.html"
