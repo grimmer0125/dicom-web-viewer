@@ -17,12 +17,13 @@
     "default_title": "DICOM image viewer"
   },
   "web_accessible_resources": [
-     "dicom.html"
+     "index.html"
   ],
 
   "permissions": [
     "file://*/*",
     "webRequest",
     "webRequestBlocking"
-  ]
+  ],
+  "content_security_policy": "script-src 'self' 'sha256-GgRxrVOKNdB4LrRsVPDSbzvfdV4UqglmviH9GoBJ5jk='; object-src 'self'"
 }

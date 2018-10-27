@@ -9,7 +9,7 @@ chrome.webRequest.onBeforeRequest.addListener(function(info) {
       // console.log("not xml request, so redirect onBeforeRequest.dcm")
 
       return {
-        redirectUrl : chrome.extension.getURL("dicom.html#"+ info.url)
+        redirectUrl : chrome.extension.getURL("index.html#"+ info.url)
       };
     }
   }
