@@ -8,11 +8,20 @@ function fetchLocalFile(url) {
 
     const arrayBuffer = xhr.response; // Note: not xhr.responseText
     if (arrayBuffer) {
-      // NOTE: start to change to the real dicom image content 
-      // https://github.com/rii-mango/Daikon
       daikon.Parser.verbose = true;
       const image = daikon.Series.parseImage(new DataView(arrayBuffer));
-      const obj = image.getInterpretedData(false, true); //obj.data: float32array 
+
+      const numFrames = image.getNumberOfFrames();
+      if (numFrames > 1) {
+        console.log("frames:", numFrames);
+        const file_info = "It is multi-frame file (n="+ numFrames +") and only show the 1st frame currently";
+        document.getElementById("file_info").innerHTML = file_info;
+      }
+
+      // TODO: add options to switch other frame if it is multi-frame
+      // getInterpretedData(asArray, asObject, frameIndex) 
+      // NOTE: start to render the real dicom image content 
+      const obj = image.getInterpretedData(false, true, 0); //obj.data: float32array 
 
       const width= obj.numCols;
       const height= obj.numRows;
@@ -39,11 +48,12 @@ function fetchLocalFile(url) {
         array[i] = (obj.data[i]-min)*255/delta;
       }
 
-      // Create context from canvas
       const c = document.getElementById("myCanvas");
+      // resize canvas to fit DICOM image
       c.width = width;
       c.height = height;
 
+      // Create context from canvas
       const ctx = c.getContext("2d"); 
 
       // Create ImageData object
