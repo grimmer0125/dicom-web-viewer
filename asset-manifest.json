@@ -1,13 +1,13 @@
 {
-  "main.css": "/dicom-web-viewer/static/css/main.2786df0b.chunk.css",
-  "main.js": "/dicom-web-viewer/static/js/main.d4dfa4b7.chunk.js",
-  "main.js.map": "/dicom-web-viewer/static/js/main.d4dfa4b7.chunk.js.map",
-  "static/js/1.8adc6f88.chunk.js": "/dicom-web-viewer/static/js/1.8adc6f88.chunk.js",
-  "static/js/1.8adc6f88.chunk.js.map": "/dicom-web-viewer/static/js/1.8adc6f88.chunk.js.map",
+  "main.css": "/dicom-web-viewer/static/css/main.17f0200d.chunk.css",
+  "main.js": "/dicom-web-viewer/static/js/main.c74e0a20.chunk.js",
+  "main.js.map": "/dicom-web-viewer/static/js/main.c74e0a20.chunk.js.map",
+  "static/js/1.ebf3f4f1.chunk.js": "/dicom-web-viewer/static/js/1.ebf3f4f1.chunk.js",
+  "static/js/1.ebf3f4f1.chunk.js.map": "/dicom-web-viewer/static/js/1.ebf3f4f1.chunk.js.map",
   "runtime~main.js": "/dicom-web-viewer/static/js/runtime~main.cc10fb0d.js",
   "runtime~main.js.map": "/dicom-web-viewer/static/js/runtime~main.cc10fb0d.js.map",
-  "static/css/main.2786df0b.chunk.css.map": "/dicom-web-viewer/static/css/main.2786df0b.chunk.css.map",
+  "static/css/main.17f0200d.chunk.css.map": "/dicom-web-viewer/static/css/main.17f0200d.chunk.css.map",
   "index.html": "/dicom-web-viewer/index.html",
-  "precache-manifest.f0b7967f43cae0dedf0c6cf67e073141.js": "/dicom-web-viewer/precache-manifest.f0b7967f43cae0dedf0c6cf67e073141.js",
+  "precache-manifest.c51aa0f66ed766da0517f56c335cf4af.js": "/dicom-web-viewer/precache-manifest.c51aa0f66ed766da0517f56c335cf4af.js",
   "service-worker.js": "/dicom-web-viewer/service-worker.js"
 }

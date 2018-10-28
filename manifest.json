@@ -20,7 +20,5 @@
     "file://*/*",
     "webRequest",
     "webRequestBlocking"
-  ],
-  "start_url": ".",
-  "display": "standalone"
+  ]
 }
