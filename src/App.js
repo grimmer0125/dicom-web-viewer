@@ -23,7 +23,7 @@ class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      filePath: 'a',
+      filePath: '',
       fileInfo: '',
     };
     this.myCanvasRef = React.createRef();
@@ -146,7 +146,6 @@ class App extends Component {
   onDropFile = (acceptedFiles) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
-      console.log('this.state:', this.state);
       this.setState({
         filePath: file.name,
       });
@@ -171,7 +170,6 @@ class App extends Component {
   }
 
   render() {
-    console.log('this.state:', this.state);
     const { filePath, fileInfo } = this.state;
     return (
       <div className="flex-container">
