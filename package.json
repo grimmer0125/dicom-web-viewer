@@ -2,6 +2,7 @@
   "name": "dicom-image-viewer",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://grimmer0125.github.io/dicom-web-viewer",
   "dependencies": {
     "cross-env": "^5.2.0",
     "react": "^16.6.0",
@@ -14,7 +15,9 @@
     "start": "react-scripts start",
     "build": "cross-env INLINE_RUNTIME_CHUNK=false react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "predeploy": "yarn run build",
+    "deploy": "gh-pages -d build"
   },
   "browserslist": [
     ">0.2%",
@@ -27,6 +30,7 @@
     "eslint-config-airbnb": "17.1.0",
     "eslint-plugin-import": "^2.14.0",
     "eslint-plugin-jsx-a11y": "^6.1.1",
-    "eslint-plugin-react": "^7.11.0"
+    "eslint-plugin-react": "^7.11.0",
+    "gh-pages": "^2.0.1"
   }
 }
