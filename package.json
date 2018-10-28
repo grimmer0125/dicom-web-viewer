@@ -7,7 +7,8 @@
     "react": "^16.6.0",
     "react-dom": "^16.6.0",
     "react-dropzone": "^7.0.1",
-    "react-scripts": "2.0.5"
+    "react-scripts": "2.0.5",
+    "semantic-ui-react": "^0.83.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -24,8 +25,6 @@
   "devDependencies": {
     "babel-eslint": "9.x",
     "eslint-config-airbnb": "17.1.0",
-    "eslint-config-react-app": "^3.0.4",
-    "eslint-plugin-flowtype": "2.x",
     "eslint-plugin-import": "^2.14.0",
     "eslint-plugin-jsx-a11y": "^6.1.1",
     "eslint-plugin-react": "^7.11.0"

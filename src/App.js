@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import { Dropdown } from 'semantic-ui-react';
 // import logo from './logo.svg';
 // import './App.css';
 
@@ -25,9 +26,13 @@ class App extends Component {
     this.state = {
       filePath: '',
       fileInfo: '',
+      currentIndex: 0,
+      frameIndexes: [],
     };
     this.myCanvasRef = React.createRef();
+  }
 
+  componentDidMount() {
     // get file path from current url, e.g.
     // chrome-extension://jfnlfimghfiagibfigmlopnfljpfnnje/dicom.html#file:///tmp/test.dcm
     const url = window.location.href;
@@ -41,10 +46,9 @@ class App extends Component {
 
         // console.log("dicom html loads, after hash:", filePath);
 
-        this.state = {
+        this.setState({
           filePath,
-          fileInfo: '',
-        };
+        });
 
         // document.getElementById("file").innerHTML = filePath;
 
@@ -61,72 +65,81 @@ class App extends Component {
       const numFrames = image.getNumberOfFrames();
       if (numFrames > 1) {
         // console.log("frames:", numFrames);
-        const fileInfo = `It is multi-frame file (n=${numFrames}) and only show the 1st frame currently`;
+        const fileInfo = `It is multi-frame file (n=${numFrames})`;
 
         this.setState({
           fileInfo,
         });
-        // document.getElementById("file_info").innerHTML = file_info;
+      } else {
+        this.setState({
+          fileInfo: '',
+        });
       }
-
-      // TODO: add options to switch other frame if it is multi-frame
-      // getInterpretedData(asArray, asObject, frameIndex)
-      // NOTE: start to render the real dicom image content
-      const obj = image.getInterpretedData(false, true, 0); // obj.data: float32array
-
-      const width = obj.numCols;
-      const height = obj.numRows;
-
-      // little endian type of dicom data seems to be unit16, http://rii.uthscsa.edu/mango/papaya/ shows 2 byte
-      // obj.data: float32, length:262144 (if dicom image is 512x512)
-      // NOTE: 32bit -> 8 bit (use min/max to normalize to 0~255 from -1000~1000）
-      let max = obj.data[0];
-      let min = obj.data[0];
-      for (let i = 0; i < obj.data.length; i++) {
-        if (obj.data[i] > max) {
-          max = obj.data[i];
-        }
-      }
-      for (let i = 0; i < obj.data.length; i++) {
-        if (obj.data[i] < min) {
-          min = obj.data[i];
-        }
-      }
-      const delta = max - min;
-      // Create array view
-      const array = new Uint8ClampedArray(obj.data.length);
-      for (let i = 0; i < obj.data.length; i++) {
-        array[i] = (obj.data[i] - min) * 255 / delta;
-      }
-
-      if (!this.myCanvasRef.current) {
-        console.log('this.myCanvasRef is not ready, return');
-        return;
-      }
-
-      const c = this.myCanvasRef.current; // document.getElementById("myCanvas");
-      // resize canvas to fit DICOM image
-      c.width = width;
-      c.height = height;
-
-      // Create context from canvas
-      const ctx = c.getContext('2d');
-
-      // Create ImageData object
-      const imgData = ctx.createImageData(width, height);
-      const { data } = imgData;// .data; // width x height x 4 (RGBA), Uint8ClampedArray
-      console.log(data.byteLength);
-
-      for (let i = 0, k = 0; i < data.byteLength; i += 4, k += 1) {
-        data[i] = array[k];
-        data[i + 1] = array[k];
-        data[i + 2] = array[k];
-        data[i + 3] = 255;
-      }
-
-      // console.log("fill data to ctx's imagedata done, then draw our imagedata onto the canvas")
-      ctx.putImageData(imgData, 0, 0);
+      this.setState({
+        frameIndexes: Array.from({ length: numFrames }, (v, k) => ({ text: k, value: k })),
+        currentIndex: 0,
+      });
+      this.currentImage = image;
+      this.switchFrame(this.currentImage, 0);
     }
+  }
+
+  switchFrame = (image, index) => {
+    // NOTE: start to render the real dicom image content
+    const obj = image.getInterpretedData(false, true, index); // obj.data: float32array
+
+    const width = obj.numCols;
+    const height = obj.numRows;
+
+    // little endian type of dicom data seems to be unit16, http://rii.uthscsa.edu/mango/papaya/ shows 2 byte
+    // obj.data: float32, length:262144 (if dicom image is 512x512)
+    // NOTE: 32bit -> 8 bit (use min/max to normalize to 0~255 from -1000~1000）
+    let max = obj.data[0];
+    let min = obj.data[0];
+    for (let i = 0; i < obj.data.length; i += 1) {
+      if (obj.data[i] > max) {
+        max = obj.data[i];
+      }
+    }
+    for (let i = 0; i < obj.data.length; i += 1) {
+      if (obj.data[i] < min) {
+        min = obj.data[i];
+      }
+    }
+    const delta = max - min;
+    // Create array view
+    const array = new Uint8ClampedArray(obj.data.length);
+    for (let i = 0; i < obj.data.length; i += 1) {
+      array[i] = (obj.data[i] - min) * 255 / delta;
+    }
+
+    if (!this.myCanvasRef.current) {
+      console.log('this.myCanvasRef is not ready, return');
+      return;
+    }
+
+    const c = this.myCanvasRef.current; // document.getElementById("myCanvas");
+    // resize canvas to fit DICOM image
+    c.width = width;
+    c.height = height;
+
+    // Create context from canvas
+    const ctx = c.getContext('2d');
+
+    // Create ImageData object
+    const imgData = ctx.createImageData(width, height);
+    const { data } = imgData;// .data; // width x height x 4 (RGBA), Uint8ClampedArray
+    console.log(data.byteLength);
+
+    for (let i = 0, k = 0; i < data.byteLength; i += 4, k += 1) {
+      data[i] = array[k];
+      data[i + 1] = array[k];
+      data[i + 2] = array[k];
+      data[i + 3] = 255;
+    }
+
+    // console.log("fill data to ctx's imagedata done, then draw our imagedata onto the canvas")
+    ctx.putImageData(imgData, 0, 0);
   }
 
   fetchLocalFile = (url) => {
@@ -134,7 +147,7 @@ class App extends Component {
 
     xhr.open('GET', url, true);
     xhr.responseType = 'arraybuffer';
-    xhr.onload = (e) => {
+    xhr.onload = () => {
       // console.log("e:", e) // ProgressEvent
       const arrayBuffer = xhr.response;
       this.renderImage(arrayBuffer);
@@ -169,8 +182,19 @@ class App extends Component {
     }
   }
 
+  handleSwitchFrame = (e, obj) => {
+    const { value } = obj;
+
+    console.log('switch frame:', value);
+
+    this.setState({ currentIndex: value });
+    this.switchFrame(this.currentImage, value);
+  }
+
   render() {
-    const { filePath, fileInfo } = this.state;
+    const {
+      filePath, fileInfo, frameIndexes, currentIndex,
+    } = this.state;
     return (
       <div className="flex-container">
         <div>
@@ -192,19 +216,32 @@ class App extends Component {
                     {' '}
 Try dropping DICOM image files here,
                     <br />
-or click here to select files to upload.
+or click here to select files to view.
                   </p>
                 </div>
               </div>
             </Dropzone>
           </div>
-          <div>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
             {filePath || null}
           </div>
-          <div>
-            {fileInfo || null}
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div>
+              {fileInfo || null}
+            </div>
+            <div>
+              {frameIndexes.length > 1 ? (
+                <Dropdown
+                  placeholder="Switch Frame"
+                  selection
+                  onChange={this.handleSwitchFrame}
+                  options={frameIndexes}
+                  value={currentIndex}
+                />
+              ) : null}
+            </div>
           </div>
-          <div>
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
             <canvas
               ref={this.myCanvasRef}
               width="128"
