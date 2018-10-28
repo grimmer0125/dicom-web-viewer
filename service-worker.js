@@ -14,7 +14,7 @@
 importScripts("https://storage.googleapis.com/workbox-cdn/releases/3.6.3/workbox-sw.js");
 
 importScripts(
-  "/dicom-web-viewer/precache-manifest.c51aa0f66ed766da0517f56c335cf4af.js"
+  "/dicom-web-viewer/precache-manifest.65555f7859fe4890a878af1a0fca9449.js"
 );
 
 workbox.clientsClaim();
