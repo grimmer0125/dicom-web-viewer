@@ -32,7 +32,7 @@ Make sure you have [`yarn`](https://yarnpkg.com/) installed first.
 
 ### Deploy Web app to GitHub Pages
 
-`yarn deploy`
+`yarn deploy` (which deploys to the `homepage` in package.json, change it if you need)
 
 ## Usage
 
