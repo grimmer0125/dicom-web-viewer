@@ -10,7 +10,7 @@ The extension is submitting and waitting for reviewing.
 
 Ref: https://developer.chrome.com/extensions/getstarted
 
-Make sure you if [`yarn`](https://yarnpkg.com/) installed first. 
+Make sure you have [`yarn`](https://yarnpkg.com/) installed first. 
 
 1. `yarn install`.
 2. Remove `homepage` in `package.json`, then `yarn build`.
