@@ -13,11 +13,10 @@ Ref: https://developer.chrome.com/extensions/getstarted
 Make sure you have [`yarn`](https://yarnpkg.com/) installed first. 
 
 1. `yarn install`.
-2. Remove `homepage` in `package.json`, then `yarn build`.
-3. Open the Extension Management page by navigating to `chrome://extensions`.
+2. Open the Extension Management page by navigating to `chrome://extensions`.
     - The Extension Management page can also be opened by clicking on the Chrome menu, hovering over `More Tools` then selecting `Extensions`.
-4. Enable Developer Mode by clicking the toggle switch next to Developer mode.
-5. Click the LOAD UNPACKED button and select the `build subfolder` in extension directory.
+3. Enable Developer Mode by clicking the toggle switch next to Developer mode.
+4. Click the LOAD UNPACKED button and select the `build subfolder` in extension directory.
 
 ### After Installing 
 
@@ -32,7 +31,9 @@ Make sure you have [`yarn`](https://yarnpkg.com/) installed first.
 
 ### Deploy Web app to GitHub Pages
 
-`yarn deploy` (which deploys to the `homepage` in package.json, change it if you need)
+1. Add `"homepage": "https://grimmer0125.github.io/dicom-web-viewer"` in `package.json`
+2. `yarn build`.
+3. `yarn deploy` (which deploys to the `homepage` in package.json, change it if you need)
 
 ## Usage
 
