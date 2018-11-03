@@ -4,7 +4,7 @@
 
 ### Install from Chrome Web Store
 
-The extension is submitting and waitting for reviewing. 
+https://chrome.google.com/webstore/detail/dicom-image-viewer/ehppmcooahfnlfhhcflpkcjmonkoindc
 
 ### Install locally to develop or test
 
