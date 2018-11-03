@@ -2,7 +2,6 @@
   "name": "dicom-image-viewer",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://grimmer0125.github.io/dicom-web-viewer",
   "dependencies": {
     "cross-env": "^5.2.0",
     "react": "^16.6.0",
