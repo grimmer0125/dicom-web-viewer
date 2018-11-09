@@ -1,9 +1,9 @@
 {
   "manifest_version": 2,
 
-  "name": "dicom-image-viewer",
-  "description": "This extension allows the user to view dicom image",
-  "version": "1.1.0",
+  "name": "DICOM image viewer",
+  "description": "This extension allows the user to view DICOM image",
+  "version": "1.1.1",
   "background": {
       "scripts": [
         "background.js"
