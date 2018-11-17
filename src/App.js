@@ -85,7 +85,7 @@ class App extends Component {
   }
 
   switchFrame = (image, index) => {
-    // NOTE: start to render the real dicom image content
+    // getInterpretedData = getting HU (Hounsfield unit)
     const obj = image.getInterpretedData(false, true, index); // obj.data: float32array
 
     const width = obj.numCols;
@@ -94,16 +94,21 @@ class App extends Component {
     // little endian type of dicom data seems to be unit16, http://rii.uthscsa.edu/mango/papaya/ shows 2 byte
     // obj.data: float32, length:262144 (if dicom image is 512x512)
     // NOTE: 32bit -> 8 bit (use min/max to normalize to 0~255 from -1000~1000）
-    let max = obj.data[0];
-    let min = obj.data[0];
+    let max = null;
+    let min = null;
     for (let i = 0; i < obj.data.length; i += 1) {
-      if (obj.data[i] > max) {
-        max = obj.data[i];
+      const pixel = obj.data[i] !== -3024 ? obj.data[i] : -1024;
+      if (!max || pixel > max) {
+        max = pixel;
       }
     }
     for (let i = 0; i < obj.data.length; i += 1) {
-      if (obj.data[i] < min) {
-        min = obj.data[i];
+      // Set outside-of-scan pixels (-2000) to -1024 (air HU)
+      // Workaround hard code fix, intercept may not be always -1024
+      // TODO: improve it later
+      const pixel = obj.data[i] !== -3024 ? obj.data[i] : -1024;
+      if (!min || pixel < min) {
+        min = pixel;
       }
     }
     const delta = max - min;
