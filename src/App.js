@@ -36,10 +36,10 @@ class App extends Component {
     // get file path from current url, e.g.
     // chrome-extension://jfnlfimghfiagibfigmlopnfljpfnnje/dicom.html#file:///tmp/test.dcm
     const url = window.location.href;
+    // 'http://localhost#http://medistim.com/wp-content/uploads/2016/07/ttfm.dcm'; //
     // console.log("current url:", url);
 
-    if (url.indexOf('file://') !== -1
-        && url.indexOf('.dcm') !== -1) {
+    if (url.toLowerCase().indexOf('.dcm') !== -1 || url.toLowerCase().indexOf('.dicom') !== -1) {
       const paths = url.split('#');
       if (paths.length > 1) {
         const filePath = paths[1];
@@ -52,12 +52,13 @@ class App extends Component {
 
         // document.getElementById("file").innerHTML = filePath;
 
-        this.fetchLocalFile(filePath);
+        this.fetchFile(filePath);
       }
     }
   }
 
   renderImage = (buffer) => {
+    console.log('renderImage bytelength:', buffer.byteLength);
     if (buffer) {
       daikon.Parser.verbose = true;
       const image = daikon.Series.parseImage(new DataView(buffer));
@@ -76,15 +77,24 @@ class App extends Component {
         });
       }
       this.setState({
-        frameIndexes: Array.from({ length: numFrames }, (v, k) => ({ text: k, value: k })),
+        frameIndexes: Array.from(
+          {
+            length: numFrames,
+          },
+          (v, k) => ({
+            text: k,
+            value: k,
+          }),
+        ),
         currentIndex: 0,
       });
       this.currentImage = image;
       this.switchFrame(this.currentImage, 0);
     }
-  }
+  };
 
   switchFrame = (image, index) => {
+    console.log(`switch to ${index} Frame`);
     // getInterpretedData = getting HU (Hounsfield unit)
     const obj = image.getInterpretedData(false, true, index); // obj.data: float32array
 
@@ -115,7 +125,7 @@ class App extends Component {
     // Create array view
     const array = new Uint8ClampedArray(obj.data.length);
     for (let i = 0; i < obj.data.length; i += 1) {
-      array[i] = (obj.data[i] - min) * 255 / delta;
+      array[i] = ((obj.data[i] - min) * 255) / delta;
     }
 
     if (!this.myCanvasRef.current) {
@@ -133,7 +143,7 @@ class App extends Component {
 
     // Create ImageData object
     const imgData = ctx.createImageData(width, height);
-    const { data } = imgData;// .data; // width x height x 4 (RGBA), Uint8ClampedArray
+    const { data } = imgData; // .data; // width x height x 4 (RGBA), Uint8ClampedArray
     console.log(data.byteLength);
 
     for (let i = 0, k = 0; i < data.byteLength; i += 4, k += 1) {
@@ -145,21 +155,41 @@ class App extends Component {
 
     // console.log("fill data to ctx's imagedata done, then draw our imagedata onto the canvas")
     ctx.putImageData(imgData, 0, 0);
-  }
+  };
 
-  fetchLocalFile = (url) => {
-    const xhr = new XMLHttpRequest();
-
-    xhr.open('GET', url, true);
-    xhr.responseType = 'arraybuffer';
-    xhr.onload = () => {
-      // console.log("e:", e) // ProgressEvent
-      const arrayBuffer = xhr.response;
-      this.renderImage(arrayBuffer);
-    };
-
-    xhr.send();
-  }
+  fetchFile = (url) => {
+    if (url.indexOf('file://') === 0) {
+      const xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.responseType = 'arraybuffer';
+      xhr.onload = () => {
+        const arrayBuffer = xhr.response;
+        this.renderImage(arrayBuffer);
+      };
+      xhr.send();
+    } else {
+      // NOTE: copy from https://github.com/my-codeworks/tiff-viewer-extension/blob/master/background.js#L29
+      // TODO: figure it out why using arraybuffer will fail
+      console.log('Starting XHR request for', url);
+      const request = new XMLHttpRequest();
+      request.open('GET', url, false);
+      request.overrideMimeType('text/plain; charset=x-user-defined');
+      request.send();
+      console.log('Finished XHR request');
+      const data = request.responseText;
+      let buffer;
+      let view;
+      let a_byte;
+      buffer = new ArrayBuffer(data.length);
+      view = new DataView(buffer);
+      data.split('').forEach((c, i) => {
+        a_byte = c.charCodeAt();
+        view.setUint8(i, a_byte & 0xff);
+      });
+      const buffer2 = view.buffer;
+      this.renderImage(buffer2);
+    }
+  };
 
   onDropFile = (acceptedFiles) => {
     if (acceptedFiles.length > 0) {
@@ -185,56 +215,64 @@ class App extends Component {
       reader.onerror = () => console.log('file reading has failed');
       reader.readAsArrayBuffer(file);
     }
-  }
+  };
 
   handleSwitchFrame = (e, obj) => {
     const { value } = obj;
 
     console.log('switch frame:', value);
 
-    this.setState({ currentIndex: value });
+    this.setState({
+      currentIndex: value,
+    });
     this.switchFrame(this.currentImage, value);
-  }
+  };
 
   render() {
-    const {
-      filePath, fileInfo, frameIndexes, currentIndex,
-    } = this.state;
+    const { filePath, fileInfo, frameIndexes, currentIndex } = this.state;
     return (
       <div className="flex-container">
         <div>
-          <div>
-              DICOM Image Viewer
-          </div>
+          <div>DICOM Image Viewer </div>{' '}
           <div>
             <Dropzone preventDropOnDocument={false} style={dropZoneStyle} onDrop={this.onDropFile}>
-              <div style={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
+              <div
+                style={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}
               >
                 <div>
                   <p>
                     {' '}
-Try dropping DICOM image files here,
-                    <br />
-or click here to select files to view.
+                    Try dropping DICOM image files here, <br />
+                    or click here to select files to view.
                   </p>
                 </div>
               </div>
             </Dropzone>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            {filePath || null}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
+          </div>{' '}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+            }}
+          >
+            {' '}
+            {filePath || null}{' '}
+          </div>{' '}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+            }}
+          >
+            <div> {fileInfo || null} </div>{' '}
             <div>
-              {fileInfo || null}
-            </div>
-            <div>
+              {' '}
               {frameIndexes.length > 1 ? (
                 <Dropdown
                   placeholder="Switch Frame"
@@ -243,17 +281,18 @@ or click here to select files to view.
                   options={frameIndexes}
                   value={currentIndex}
                 />
-              ) : null}
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <canvas
-              ref={this.myCanvasRef}
-              width="128"
-              height="128"
-            />
-          </div>
-        </div>
+              ) : null}{' '}
+            </div>{' '}
+          </div>{' '}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+            }}
+          >
+            <canvas ref={this.myCanvasRef} width="128" height="128" />
+          </div>{' '}
+        </div>{' '}
       </div>
     );
   }
