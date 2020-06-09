@@ -39,3 +39,7 @@ Make sure you have [`yarn`](https://yarnpkg.com/) installed first.
 ## Usage
 
 Just drag your DICOM files into Chrome browser
+
+## Issues
+
+node12, node14 fail to yarn install due to fsvevents. Maybe rollback to 959520ff8196c7a2c40623c0ea8de77d623b8e95.
