@@ -62,7 +62,6 @@ class App extends Component {
     if (buffer) {
       daikon.Parser.verbose = true;
       const image = daikon.Series.parseImage(new DataView(buffer));
-
       const numFrames = image.getNumberOfFrames();
       if (numFrames > 1) {
         // console.log("frames:", numFrames);
@@ -96,7 +95,20 @@ class App extends Component {
   switchFrame = (image, index) => {
     console.log(`switch to ${index} Frame`);
     // getInterpretedData = getting HU (Hounsfield unit)
+    // https://github.com/rii-mango/Daikon/issues/4
+    // The new function will handle things like byte order, number of bytes per voxel, datatype, data scales, etc.
+    // It returns an array of floating point values. So far this is only working for plain intensity data, not RGB.
+    // NOTE: only works non-RGB data
     const obj = image.getInterpretedData(false, true, index); // obj.data: float32array
+
+    // https://github.com/rii-mango/Daikon/blob/8eb342b3f37a1020aba97334a0acb58f99f91367/src/image.js#L54
+    // https://github.com/rii-mango/Daikon/issues/14
+    // gray:
+    //  2:BYTE_TYPE_INTEGER
+    //  3:BYTE_TYPE_INTEGER_UNSIGNED ,
+    // rgb:
+    //  6: daikon.Image.BYTE_TYPE_RGB
+    const imageDataType = image.getDataType();
 
     const width = obj.numCols;
     const height = obj.numRows;
