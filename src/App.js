@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Dropdown } from 'semantic-ui-react';
+import { Dropdown, Form, Checkbox } from 'semantic-ui-react';
 // import logo from './logo.svg';
 // import './App.css';
 
@@ -28,9 +28,26 @@ class App extends Component {
       fileInfo: '',
       currentIndex: 0,
       frameIndexes: [],
+      ifWindowCenterMode: true,
+      windowCenter: '',
+      windowWidth: '',
+      max: '',
+      min: '',
     };
     this.myCanvasRef = React.createRef();
   }
+
+  handleChange = (e, { value }) => {
+    if (value === 'center') {
+      this.setState({ ifWindowCenterMode: true });
+    } else {
+      this.setState({ ifWindowCenterMode: false });
+    }
+
+    if (this.currentImage) {
+      this.switchFrame(this.currentImage, this.state.currentIndex);
+    }
+  };
 
   componentDidMount() {
     // get file path from current url, e.g.
@@ -100,9 +117,44 @@ class App extends Component {
     // It returns an array of floating point values. So far this is only working for plain intensity data, not RGB.
     // NOTE: only works non-RGB data
     const obj = image.getInterpretedData(false, true, index); // obj.data: float32array
-
     const width = obj.numCols;
     const height = obj.numRows;
+    const windowCenter = image.getWindowCenter();
+    const windowWidth = image.getWindowWidth();
+    this.setState({
+      windowCenter,
+      windowWidth,
+      max: obj.max,
+      min: obj.min,
+    });
+
+    console.log(`center:${windowCenter};width:${windowWidth}`);
+    let max;
+    let min;
+    const { ifWindowCenterMode } = this.state;
+    if (!ifWindowCenterMode) {
+      console.log('max/min mode render');
+      ({ max, min } = obj);
+    } else {
+      console.log('window center render');
+
+      if (windowCenter && windowWidth) {
+        min = windowCenter - Math.floor(windowWidth / 2);
+        max = windowCenter + Math.floor(windowWidth / 2);
+
+        // truncate
+        for (let i = 0; i < obj.data.length; i += 1) {
+          if (obj.data[i] > max) {
+            obj.data[i] = max;
+          } else if (obj.data[i] < min) {
+            obj.data[i] = min;
+          }
+        }
+      } else {
+        console.log('no valid window center/width');
+        ({ max, min } = obj);
+      }
+    }
 
     // little endian type of dicom data seems to be unit16, http://rii.uthscsa.edu/mango/papaya/ shows 2 byte
     // obj.data: float32, length:262144 (if dicom image is 512x512)
@@ -125,7 +177,7 @@ class App extends Component {
     //     min = pixel;
     //   }
     // }
-    const { max, min } = obj;
+
     const delta = max - min;
     // Create array view
     const array = new Uint8ClampedArray(obj.data.length);
@@ -261,11 +313,21 @@ class App extends Component {
   }
 
   render() {
-    const { filePath, fileInfo, frameIndexes, currentIndex } = this.state;
+    const {
+      filePath,
+      fileInfo,
+      frameIndexes,
+      currentIndex,
+      ifWindowCenterMode,
+      windowCenter,
+      windowWidth,
+      max,
+      min,
+    } = this.state;
     return (
       <div className="flex-container">
         <div>
-          <div>DICOM Image Viewer </div>{' '}
+          <div>DICOM Image Viewer </div>
           <div>
             <Dropzone preventDropOnDocument={false} style={dropZoneStyle} onDrop={this.onDropFile}>
               <div
@@ -286,7 +348,31 @@ class App extends Component {
                 </div>
               </div>
             </Dropzone>
-          </div>{' '}
+            <Form>
+              <Form.Field>
+                <Checkbox
+                  radio
+                  label="Window Center Mode (default)"
+                  name="checkboxRadioGroup"
+                  value="center"
+                  checked={ifWindowCenterMode}
+                  onChange={this.handleChange}
+                />
+                {` c:${windowCenter};w:${windowWidth}`}
+              </Form.Field>
+              <Form.Field>
+                <Checkbox
+                  radio
+                  label="Max/Min Mode"
+                  name="checkboxRadioGroup"
+                  value="max"
+                  checked={!ifWindowCenterMode}
+                  onChange={this.handleChange}
+                />
+                {` max:${max};min:${min}`}
+              </Form.Field>
+            </Form>
+          </div>
           <div
             style={{
               display: 'flex',
@@ -324,7 +410,7 @@ class App extends Component {
           >
             <canvas ref={this.myCanvasRef} width={128} height={128} />
           </div>{' '}
-        </div>{' '}
+        </div>
       </div>
     );
   }
