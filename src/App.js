@@ -101,38 +101,31 @@ class App extends Component {
     // NOTE: only works non-RGB data
     const obj = image.getInterpretedData(false, true, index); // obj.data: float32array
 
-    // https://github.com/rii-mango/Daikon/blob/8eb342b3f37a1020aba97334a0acb58f99f91367/src/image.js#L54
-    // https://github.com/rii-mango/Daikon/issues/14
-    // gray:
-    //  2:BYTE_TYPE_INTEGER
-    //  3:BYTE_TYPE_INTEGER_UNSIGNED ,
-    // rgb:
-    //  6: daikon.Image.BYTE_TYPE_RGB
-    const imageDataType = image.getDataType();
-
     const width = obj.numCols;
     const height = obj.numRows;
 
     // little endian type of dicom data seems to be unit16, http://rii.uthscsa.edu/mango/papaya/ shows 2 byte
     // obj.data: float32, length:262144 (if dicom image is 512x512)
     // NOTE: 32bit -> 8 bit (use min/max to normalize to 0~255 from -1000~1000）
-    let max = null;
-    let min = null;
-    for (let i = 0; i < obj.data.length; i += 1) {
-      const pixel = obj.data[i] !== -3024 ? obj.data[i] : -1024;
-      if (!max || pixel > max) {
-        max = pixel;
-      }
-    }
-    for (let i = 0; i < obj.data.length; i += 1) {
-      // Set outside-of-scan pixels (-2000) to -1024 (air HU)
-      // Workaround hard code fix, intercept may not be always -1024
-      // TODO: improve it later
-      const pixel = obj.data[i] !== -3024 ? obj.data[i] : -1024;
-      if (!min || pixel < min) {
-        min = pixel;
-      }
-    }
+    // let max = null;
+    // let min = null;
+    // for (let i = 0; i < obj.data.length; i += 1) {
+    //   const pixel = obj.data[i];
+    //   if (!max || pixel > max) {
+    //     max = pixel;
+    //   }
+    // }
+    // for (let i = 0; i < obj.data.length; i += 1) {
+    //   // Set outside-of-scan pixels (-2000) to -1024 (air HU)
+    //   // Workaround hard code fix, intercept may not be always -1024
+    //   // TODO: improve it later
+    //   const pixel = obj.data[i] !== -3024 ? obj.data[i] : -1024;
+    //   // const pixel = obj.data[i];
+    //   if (!min || pixel < min) {
+    //     min = pixel;
+    //   }
+    // }
+    const { max, min } = obj;
     const delta = max - min;
     // Create array view
     const array = new Uint8ClampedArray(obj.data.length);
@@ -145,7 +138,9 @@ class App extends Component {
       return;
     }
 
-    const c = this.myCanvasRef.current; // document.getElementById("myCanvas");
+    const c = document.createElement('canvas');
+
+    // const c = this.myCanvasRef.current; // document.getElementById("myCanvas");
     // resize canvas to fit DICOM image
     c.width = width;
     c.height = height;
@@ -167,6 +162,15 @@ class App extends Component {
 
     // console.log("fill data to ctx's imagedata done, then draw our imagedata onto the canvas")
     ctx.putImageData(imgData, 0, 0);
+
+    const scale = this.resizeTotFit(width, height);
+    console.log('scale:', scale);
+    const c2 = this.myCanvasRef.current;
+    c2.width = width / scale;
+    c2.height = height / scale;
+    const ctx2 = c2.getContext('2d');
+    // ctx2.scale(1 / scale, 1 / scale); is equal to ctx2.drawImage(c, 0, 0)
+    ctx2.drawImage(c, 0, 0, c2.width, c2.height);
   };
 
   fetchFile = (url) => {
@@ -240,6 +244,22 @@ class App extends Component {
     this.switchFrame(this.currentImage, value);
   };
 
+  resizeTotFit(width, height) {
+    let scale = 1;
+    const size = {
+      maxWidth: 1024,
+      maxHeight: 800,
+    };
+    if (width <= size.maxWidth && height <= size.maxHeight) {
+      return scale;
+    }
+    const scaleW = width / size.maxWidth;
+    const scaleH = height / size.maxHeight;
+    scale = scaleW >= scaleH ? scaleW : scaleH;
+
+    return scale;
+  }
+
   render() {
     const { filePath, fileInfo, frameIndexes, currentIndex } = this.state;
     return (
@@ -302,7 +322,7 @@ class App extends Component {
               justifyContent: 'center',
             }}
           >
-            <canvas ref={this.myCanvasRef} width="128" height="128" />
+            <canvas ref={this.myCanvasRef} width={128} height={128} />
           </div>{' '}
         </div>{' '}
       </div>
