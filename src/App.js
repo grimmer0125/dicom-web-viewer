@@ -115,6 +115,7 @@ class App extends Component {
     let ifRGB = false;
     let rgbMode = 0; // 0: rgbrgb... 1: rrrgggbbb
     const interp = image.getPhotometricInterpretation();
+    console.log('interp:', interp);
     if (interp !== null) {
       if (interp.trim().indexOf('RGB') !== -1) {
         ifRGB = true;
@@ -239,7 +240,7 @@ class App extends Component {
           }
         }
       } else {
-        // TODO: not test yet
+        // Note: tested. https://barre.dev/medical/samples/US-RGB-8-epicard
         const array = obj.data;
         const pixelCount = array.length / 3;
         for (let i = 0, k = 0; i < data.byteLength; i += 1, k += 1) {
