@@ -120,23 +120,20 @@ class App extends Component {
     let rgbMode = 0; // 0: rgbrgb... 1: rrrgggbbb
     const photometric = image.getPhotometricInterpretation();
     const modality = image.getModality();
-    console.log('interp:', photometric, 'modality:', modality);
     if (photometric !== null) {
       if (photometric.trim().indexOf('RGB') !== -1) {
         ifRGB = true;
         const mode = image.getPlanarConfig();
-        console.log('this is a RGB image, mode:', mode);
+        console.log('this is RGB. Planar mode:', mode);
 
         rgbMode = image.getPlanarConfig() ? image.getPlanarConfig() : 0;
-        // return daikon.Image.BYTE_TYPE_RGB;
       }
     }
 
-    // getInterpretedData = getting HU (Hounsfield unit)
+    // getPhotometricInterpretation
     // https://github.com/rii-mango/Daikon/issues/4
     // The new function will handle things like byte order, number of bytes per voxel, datatype, data scales, etc.
     // It returns an array of floating point values. So far this is only working for plain intensity data, not RGB.
-    // NOTE: only works non-RGB data
     const obj = image.getInterpretedData(false, true, index); // obj.data: float32array
     const width = obj.numCols;
     const height = obj.numRows;
@@ -153,32 +150,26 @@ class App extends Component {
       photometric,
     });
 
-    console.log(`center:${windowCenter};width:${windowWidth}`);
     let max;
     let min;
     const { ifWindowCenterMode } = this.state;
     if (!ifWindowCenterMode) {
-      console.log('max/min mode render');
       ({ max, min } = obj);
-    } else {
-      console.log('window center render');
+    } else if (windowCenter && windowWidth) {
+      min = windowCenter - Math.floor(windowWidth / 2);
+      max = windowCenter + Math.floor(windowWidth / 2);
 
-      if (windowCenter && windowWidth) {
-        min = windowCenter - Math.floor(windowWidth / 2);
-        max = windowCenter + Math.floor(windowWidth / 2);
-
-        // truncate
-        for (let i = 0; i < obj.data.length; i += 1) {
-          if (obj.data[i] > max) {
-            obj.data[i] = max;
-          } else if (obj.data[i] < min) {
-            obj.data[i] = min;
-          }
+      // truncate
+      for (let i = 0; i < obj.data.length; i += 1) {
+        if (obj.data[i] > max) {
+          obj.data[i] = max;
+        } else if (obj.data[i] < min) {
+          obj.data[i] = min;
         }
-      } else {
-        console.log('no valid window center/width');
-        ({ max, min } = obj);
       }
+    } else {
+      console.log('no valid window center/width');
+      ({ max, min } = obj);
     }
 
     // little endian type of dicom data seems to be unit16, http://rii.uthscsa.edu/mango/papaya/ shows 2 byte
@@ -217,7 +208,6 @@ class App extends Component {
     // Create ImageData object
     const imgData = ctx.createImageData(width, height);
     const { data } = imgData; // .data; // width x height x 4 (RGBA), Uint8ClampedArray
-    console.log(data.byteLength);
 
     if (!ifRGB) {
       const delta = max - min;
@@ -234,8 +224,6 @@ class App extends Component {
         data[i + 3] = 255;
       }
     } else {
-      console.log('fill RGB data');
-      // TODO:
       // if 3 channels, pixel array'order is at Tag (0028, 0006)
       // Planar Configuration = 0 -> R1, G1, B1, R2, G2, B2, …
       // Planar Configuration = 1 -> R1, R2, R3, …, G1, G2, G3, …, B1, B2, B3
@@ -277,7 +265,9 @@ class App extends Component {
     ctx.putImageData(imgData, 0, 0);
 
     const scale = this.resizeTotFit(width, height);
-    console.log('scale:', scale);
+    if (scale !== 1) {
+      console.log('scale:', scale);
+    }
     const c2 = this.myCanvasRef.current;
     c2.width = width / scale;
     c2.height = height / scale;
@@ -360,8 +350,8 @@ class App extends Component {
   resizeTotFit(width, height) {
     let scale = 1;
     const size = {
-      maxWidth: 1024,
-      maxHeight: 800,
+      maxWidth: 1280,
+      maxHeight: 1024,
     };
     if (width <= size.maxWidth && height <= size.maxHeight) {
       return scale;
