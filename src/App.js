@@ -33,6 +33,10 @@ class App extends Component {
       windowWidth: '',
       max: '',
       min: '',
+      resX: '',
+      resY: '',
+      photometric: '',
+      modality: '',
     };
     this.myCanvasRef = React.createRef();
   }
@@ -114,10 +118,11 @@ class App extends Component {
 
     let ifRGB = false;
     let rgbMode = 0; // 0: rgbrgb... 1: rrrgggbbb
-    const interp = image.getPhotometricInterpretation();
-    console.log('interp:', interp);
-    if (interp !== null) {
-      if (interp.trim().indexOf('RGB') !== -1) {
+    const photometric = image.getPhotometricInterpretation();
+    const modality = image.getModality();
+    console.log('interp:', photometric, 'modality:', modality);
+    if (photometric !== null) {
+      if (photometric.trim().indexOf('RGB') !== -1) {
         ifRGB = true;
         const mode = image.getPlanarConfig();
         console.log('this is a RGB image, mode:', mode);
@@ -142,6 +147,10 @@ class App extends Component {
       windowWidth,
       max: obj.max,
       min: obj.min,
+      resX: width,
+      resY: height,
+      modality,
+      photometric,
     });
 
     console.log(`center:${windowCenter};width:${windowWidth}`);
@@ -375,7 +384,16 @@ class App extends Component {
       windowWidth,
       max,
       min,
+      resX,
+      resY,
+      photometric,
+      modality,
     } = this.state;
+    let info = '[Info]';
+    info += ` modality:${modality};photometric:${photometric}`;
+    if (resX && resY) {
+      info += ` resolution:${resX}x${resY}`;
+    }
     return (
       <div className="flex-container">
         <div>
@@ -400,6 +418,7 @@ class App extends Component {
                 </div>
               </div>
             </Dropzone>
+            {info}
             <Form>
               <Form.Field>
                 <Checkbox
