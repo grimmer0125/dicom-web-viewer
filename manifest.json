@@ -3,24 +3,18 @@
 
   "name": "DICOM image viewer",
   "description": "This extension allows the user to view DICOM image",
-  "version": "1.1.2",
+  "version": "1.2",
   "background": {
-      "scripts": [
-        "background.js"
-      ]
+    "scripts": ["background.js"]
   },
-  "icons": { "16": "icon16.png",
+  "icons": {
+    "16": "icon16.png",
     "48": "icon48.png",
-   "128": "icon128.png" },
-  "browser_action": {
-    "default_title": "DICOM image viewer (just open file !)"
+    "128": "icon128.png"
   },
-  "web_accessible_resources": [
-     "index.html"
-  ],
-  "permissions": [
-    "file://*/*",
-    "webRequest",
-    "webRequestBlocking"
-  ]
+  "browser_action": {
+    "default_title": "DICOM image viewer (just open file/url !)"
+  },
+  "web_accessible_resources": ["index.html"],
+  "permissions": ["webRequest", "webRequestBlocking", "<all_urls>"]
 }
