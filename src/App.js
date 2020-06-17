@@ -111,6 +111,21 @@ class App extends Component {
 
   switchFrame = (image, index) => {
     console.log(`switch to ${index} Frame`);
+
+    let ifRGB = false;
+    let rgbMode = 0; // 0: rgbrgb... 1: rrrgggbbb
+    const interp = image.getPhotometricInterpretation();
+    if (interp !== null) {
+      if (interp.trim().indexOf('RGB') !== -1) {
+        ifRGB = true;
+        const mode = image.getPlanarConfig();
+        console.log('this is a RGB image, mode:', mode);
+
+        rgbMode = image.getPlanarConfig() ? image.getPlanarConfig() : 0;
+        // return daikon.Image.BYTE_TYPE_RGB;
+      }
+    }
+
     // getInterpretedData = getting HU (Hounsfield unit)
     // https://github.com/rii-mango/Daikon/issues/4
     // The new function will handle things like byte order, number of bytes per voxel, datatype, data scales, etc.
@@ -178,38 +193,74 @@ class App extends Component {
     //   }
     // }
 
-    const delta = max - min;
-    // Create array view
-    const array = new Uint8ClampedArray(obj.data.length);
-    for (let i = 0; i < obj.data.length; i += 1) {
-      array[i] = ((obj.data[i] - min) * 255) / delta;
-    }
-
     if (!this.myCanvasRef.current) {
       console.log('this.myCanvasRef is not ready, return');
       return;
     }
 
-    const c = document.createElement('canvas');
-
     // const c = this.myCanvasRef.current; // document.getElementById("myCanvas");
-    // resize canvas to fit DICOM image
+    const c = document.createElement('canvas');
     c.width = width;
     c.height = height;
-
     // Create context from canvas
     const ctx = c.getContext('2d');
-
     // Create ImageData object
     const imgData = ctx.createImageData(width, height);
     const { data } = imgData; // .data; // width x height x 4 (RGBA), Uint8ClampedArray
     console.log(data.byteLength);
 
-    for (let i = 0, k = 0; i < data.byteLength; i += 4, k += 1) {
-      data[i] = array[k];
-      data[i + 1] = array[k];
-      data[i + 2] = array[k];
-      data[i + 3] = 255;
+    if (!ifRGB) {
+      const delta = max - min;
+      // Create array view
+      const array = new Uint8ClampedArray(obj.data.length);
+      for (let i = 0; i < obj.data.length; i += 1) {
+        // normalization
+        array[i] = ((obj.data[i] - min) * 255) / delta;
+      }
+      for (let i = 0, k = 0; i < data.byteLength; i += 4, k += 1) {
+        data[i] = array[k];
+        data[i + 1] = array[k];
+        data[i + 2] = array[k];
+        data[i + 3] = 255;
+      }
+    } else {
+      console.log('fill RGB data');
+      // TODO:
+      // if 3 channels, pixel array'order is at Tag (0028, 0006)
+      // Planar Configuration = 0 -> R1, G1, B1, R2, G2, B2, …
+      // Planar Configuration = 1 -> R1, R2, R3, …, G1, G2, G3, …, B1, B2, B3
+      if (rgbMode === 0) {
+        const array = obj.data;
+        for (let i = 0, k = 0; i < data.byteLength; i += 1, k += 1) {
+          data[i] = array[k];
+          if ((i + 2) % 4 === 0) {
+            data[i + 1] = 255;
+            i += 1;
+          }
+        }
+      } else {
+        // TODO: not test yet
+        const array = obj.data;
+        const pixelCount = array.length / 3;
+        for (let i = 0, k = 0; i < data.byteLength; i += 1, k += 1) {
+          // data[i] = array[k];
+
+          const j = Math.floor(i / 4); // jth pixel, start from 0
+          if ((i + 1) % 4 === 1) {
+            // r
+            data[i] = array[j];
+          } else if ((i + 1) % 4 === 2) {
+            // g
+            data[i] = array[j + pixelCount];
+          } else if ((i + 1) % 4 === 3) {
+            // b
+            data[i] = array[j + pixelCount * 2];
+
+            data[i + 1] = 255;
+            i += 1;
+          }
+        }
+      }
     }
 
     // console.log("fill data to ctx's imagedata done, then draw our imagedata onto the canvas")
