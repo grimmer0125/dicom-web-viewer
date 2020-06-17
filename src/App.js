@@ -121,12 +121,19 @@ class App extends Component {
     const photometric = image.getPhotometricInterpretation();
     const modality = image.getModality();
     if (photometric !== null) {
+      const mode = image.getPlanarConfig();
+      console.log('Planar mode:', mode);
       if (photometric.trim().indexOf('RGB') !== -1) {
         ifRGB = true;
-        const mode = image.getPlanarConfig();
-        console.log('this is RGB. Planar mode:', mode);
 
-        rgbMode = image.getPlanarConfig() ? image.getPlanarConfig() : 0;
+        rgbMode = image.getPlanarConfig() || 0;
+      } else if (
+        photometric
+          .trim()
+          .toLowerCase()
+          .indexOf('palette') !== -1
+      ) {
+        ifRGB = true;
       }
     }
 
