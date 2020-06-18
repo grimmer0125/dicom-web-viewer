@@ -1,9 +1,13 @@
 import React, { Component } from 'react';
-import { Dropdown, Form, Checkbox } from 'semantic-ui-react';
+import { Slider } from 'react-semantic-ui-range';
+
+import { Dropdown, Form, Checkbox, Segment, Label } from 'semantic-ui-react';
 // import logo from './logo.svg';
 // import './App.css';
 
 import Dropzone from 'react-dropzone';
+
+const { fromEvent } = require('file-selector');
 
 const daikon = window.daikon;
 
@@ -20,38 +24,44 @@ const dropZoneStyle = {
   // transition: 'all 0.5s',
 };
 
+const emptyFile = {
+  frameIndexes: [],
+  currFrameIndex: 0,
+  fileInfo: '',
+  windowCenter: '',
+  windowWidth: '',
+  max: '',
+  min: '',
+  resX: '',
+  resY: '',
+  photometric: '',
+  modality: '',
+};
+
 class App extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      filePath: '',
-      fileInfo: '',
-      currentIndex: 0,
-      frameIndexes: [],
       ifWindowCenterMode: true,
-      windowCenter: '',
-      windowWidth: '',
-      max: '',
-      min: '',
-      resX: '',
-      resY: '',
-      photometric: '',
-      modality: '',
+      currFilePath: '',
+      // fileInfo: '',
+      // currFrameIndex: 0,
+      // frameIndexes: [],
+      // windowCenter: '',
+      // windowWidth: '',
+      // max: '',
+      // min: '',
+      // resX: '',
+      // resY: '',
+      // photometric: '',
+      // modality: '',
+      currFileNo: 1,
+      totalFiles: 1,
+      ...emptyFile,
     };
     this.myCanvasRef = React.createRef();
+    this.files = [];
   }
-
-  handleChange = (e, { value }) => {
-    if (value === 'center') {
-      this.setState({ ifWindowCenterMode: true });
-    } else {
-      this.setState({ ifWindowCenterMode: false });
-    }
-
-    if (this.currentImage) {
-      this.switchFrame(this.currentImage, this.state.currentIndex);
-    }
-  };
 
   componentDidMount() {
     // get file path from current url, e.g.
@@ -68,7 +78,7 @@ class App extends Component {
         // console.log("dicom html loads, after hash:", filePath);
 
         this.setState({
-          filePath,
+          currFilePath: filePath,
         });
 
         // document.getElementById("file").innerHTML = filePath;
@@ -77,6 +87,19 @@ class App extends Component {
       }
     }
   }
+
+  handleNormalizeModeChange = (e, { value }) => {
+    if (value === 'center') {
+      this.setState({ ifWindowCenterMode: true });
+    } else {
+      this.setState({ ifWindowCenterMode: false });
+    }
+
+    if (this.currentImage) {
+      const { currFrameIndex } = this.state;
+      this.switchFrame(this.currentImage, currFrameIndex);
+    }
+  };
 
   renderImage = (buffer) => {
     console.log('renderImage bytelength:', buffer.byteLength);
@@ -106,7 +129,7 @@ class App extends Component {
             value: k,
           }),
         ),
-        currentIndex: 0,
+        currFrameIndex: 0,
       });
       this.currentImage = image;
       this.switchFrame(this.currentImage, 0);
@@ -230,40 +253,38 @@ class App extends Component {
         data[i + 2] = array[k];
         data[i + 3] = 255;
       }
-    } else {
+    } else if (rgbMode === 0) {
       // if 3 channels, pixel array'order is at Tag (0028, 0006)
       // Planar Configuration = 0 -> R1, G1, B1, R2, G2, B2, …
       // Planar Configuration = 1 -> R1, R2, R3, …, G1, G2, G3, …, B1, B2, B3
-      if (rgbMode === 0) {
-        const array = obj.data;
-        for (let i = 0, k = 0; i < data.byteLength; i += 1, k += 1) {
-          data[i] = array[k];
-          if ((i + 2) % 4 === 0) {
-            data[i + 1] = 255;
-            i += 1;
-          }
+      const array = obj.data;
+      for (let i = 0, k = 0; i < data.byteLength; i += 1, k += 1) {
+        data[i] = array[k];
+        if ((i + 2) % 4 === 0) {
+          data[i + 1] = 255;
+          i += 1;
         }
-      } else {
-        // Note: tested. https://barre.dev/medical/samples/US-RGB-8-epicard
-        const array = obj.data;
-        const pixelCount = array.length / 3;
-        for (let i = 0, k = 0; i < data.byteLength; i += 1, k += 1) {
-          // data[i] = array[k];
+      }
+    } else {
+      // Note: tested. https://barre.dev/medical/samples/US-RGB-8-epicard
+      const array = obj.data;
+      const pixelCount = array.length / 3;
+      for (let i = 0, k = 0; i < data.byteLength; i += 1, k += 1) {
+        // data[i] = array[k];
 
-          const j = Math.floor(i / 4); // jth pixel, start from 0
-          if ((i + 1) % 4 === 1) {
-            // r
-            data[i] = array[j];
-          } else if ((i + 1) % 4 === 2) {
-            // g
-            data[i] = array[j + pixelCount];
-          } else if ((i + 1) % 4 === 3) {
-            // b
-            data[i] = array[j + pixelCount * 2];
+        const j = Math.floor(i / 4); // jth pixel, start from 0
+        if ((i + 1) % 4 === 1) {
+          // r
+          data[i] = array[j];
+        } else if ((i + 1) % 4 === 2) {
+          // g
+          data[i] = array[j + pixelCount];
+        } else if ((i + 1) % 4 === 3) {
+          // b
+          data[i] = array[j + pixelCount * 2];
 
-            data[i + 1] = 255;
-            i += 1;
-          }
+          data[i + 1] = 255;
+          i += 1;
         }
       }
     }
@@ -317,29 +338,58 @@ class App extends Component {
     }
   };
 
-  onDropFile = (acceptedFiles) => {
-    if (acceptedFiles.length > 0) {
-      const file = acceptedFiles[0];
+  switchImage = (value) => {
+    this.setState({
+      currFileNo: value,
+    });
+
+    const newFile = this.files[value - 1];
+    this.loadFile(newFile);
+  };
+
+  /* eslint-disable */
+  loadFile(file) {
+    this.setState({
+      currFilePath: file.name,
+    });
+
+    if (file.name.toLowerCase().indexOf('dcm') === -1 && file.name.toLowerCase().indexOf('dicom') === -1) {
+      console.log('not dicom file');
+      const c2 = this.myCanvasRef.current;
+      const ctx2 = c2.getContext('2d');
+      ctx2.clearRect(0, 0, c2.width, c2.height);
       this.setState({
-        filePath: file.name,
+        ...emptyFile,
       });
 
-      // acceptedFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          // reader.result: arraybuffer
+      return;
+    }
 
-          const fileContent = reader.result;
-          this.renderImage(fileContent);
-        } catch (e) {
-          console.log('parse dicom error:', e);
-        }
-      };
-      reader.onabort = () => console.log('file reading was aborted');
-      // e.g. "drag a folder" will fail to read
-      reader.onerror = () => console.log('file reading has failed');
-      reader.readAsArrayBuffer(file);
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const fileContent = reader.result;
+        this.renderImage(fileContent);
+      } catch (e) {
+        console.log('parse dicom error:', e);
+      }
+    };
+    reader.onabort = () => console.log('file reading was aborted');
+    // e.g. "drag a folder" will fail to read
+    reader.onerror = () => console.log('file reading has failed');
+    reader.readAsArrayBuffer(file);
+  }
+
+  onDropFile = (acceptedFiles) => {
+    if (acceptedFiles.length > 0) {
+      this.files = acceptedFiles;
+      console.log('files,', this.files.length);
+      const file = acceptedFiles[0];
+      this.setState({
+        totalFiles: acceptedFiles.length,
+        currFileNo: 1,
+      });
+      this.loadFile(file);
     }
   };
 
@@ -349,7 +399,7 @@ class App extends Component {
     console.log('switch frame:', value);
 
     this.setState({
-      currentIndex: value,
+      currFrameIndex: value,
     });
     this.switchFrame(this.currentImage, value);
   };
@@ -371,11 +421,17 @@ class App extends Component {
   }
 
   render() {
+    const settings = {
+      start: 2,
+      min: 0,
+      max: 10,
+      step: 1,
+    };
     const {
-      filePath,
+      currFilePath,
       fileInfo,
       frameIndexes,
-      currentIndex,
+      currFrameIndex,
       ifWindowCenterMode,
       windowCenter,
       windowWidth,
@@ -385,6 +441,8 @@ class App extends Component {
       resY,
       photometric,
       modality,
+      currFileNo,
+      totalFiles,
     } = this.state;
     let info = '[Info]';
     info += ` modality:${modality};photometric:${photometric}`;
@@ -396,7 +454,12 @@ class App extends Component {
         <div>
           <div>DICOM Image Viewer </div>
           <div>
-            <Dropzone preventDropOnDocument={false} style={dropZoneStyle} onDrop={this.onDropFile}>
+            <Dropzone
+              preventDropOnDocument={false}
+              style={dropZoneStyle}
+              getDataTransferItems={(evt) => fromEvent(evt)}
+              onDrop={this.onDropFile}
+            >
               <div
                 style={{
                   height: '100%',
@@ -424,7 +487,7 @@ class App extends Component {
                   name="checkboxRadioGroup"
                   value="center"
                   checked={ifWindowCenterMode}
-                  onChange={this.handleChange}
+                  onChange={this.handleNormalizeModeChange}
                 />
                 {` c:${windowCenter};w:${windowWidth}`}
               </Form.Field>
@@ -435,7 +498,7 @@ class App extends Component {
                   name="checkboxRadioGroup"
                   value="max"
                   checked={!ifWindowCenterMode}
-                  onChange={this.handleChange}
+                  onChange={this.handleNormalizeModeChange}
                 />
                 {` max:${max};min:${min}`}
               </Form.Field>
@@ -448,7 +511,7 @@ class App extends Component {
             }}
           >
             {' '}
-            {filePath || null}{' '}
+            {currFilePath || null}{' '}
           </div>{' '}
           <div
             style={{
@@ -465,11 +528,25 @@ class App extends Component {
                   selection
                   onChange={this.handleSwitchFrame}
                   options={frameIndexes}
-                  value={currentIndex}
+                  value={currFrameIndex}
                 />
               ) : null}{' '}
             </div>{' '}
           </div>{' '}
+          <div style={{ width: 600 }}>
+            {`total:${totalFiles},current:${currFileNo}`}
+            <Slider
+              discrete
+              color="red"
+              settings={{
+                start: currFileNo,
+                min: 1,
+                max: totalFiles,
+                step: 1,
+                onChange: this.switchImage,
+              }}
+            />
+          </div>
           <div
             style={{
               display: 'flex',
