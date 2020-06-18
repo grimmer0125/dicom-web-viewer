@@ -78,7 +78,7 @@ class App extends Component {
         // console.log("dicom html loads, after hash:", filePath);
 
         this.setState({
-          currFilePath: filePath,
+          currFilePath: decodeURI(filePath),
         });
 
         // document.getElementById("file").innerHTML = filePath;
