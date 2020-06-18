@@ -18,7 +18,7 @@ const dropZoneStyle = {
   borderRadius: 5,
   // margin: 30,
   // padding: 30,
-  width: 1280,
+  width: 800,
   height: 150,
   textAlign: 'center',
   // transition: 'all 0.5s',
@@ -455,33 +455,44 @@ class App extends Component {
     return (
       <div className="flex-container">
         <div>
-          <div>DICOM Image Viewer </div>
+          <div className="flex-container">
+            <div>DICOM Image Viewer</div>
+          </div>
           <div>
-            <Dropzone
-              preventDropOnDocument={false}
-              style={dropZoneStyle}
-              getDataTransferItems={(evt) => fromEvent(evt)}
-              onDrop={this.onDropFile}
-            >
-              <div
-                style={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}
+            <div className="flex-container">
+              <Dropzone
+                preventDropOnDocument={false}
+                style={dropZoneStyle}
+                getDataTransferItems={(evt) => fromEvent(evt)}
+                onDrop={this.onDropFile}
               >
-                <div>
-                  <p>
-                    {' '}
-                    Try dropping DICOM image files here, <br />
-                    or click here to select files to view.
-                  </p>
+                <div
+                  style={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}
+                >
+                  <div>
+                    <p>
+                      {' '}
+                      Try dropping DICOM image files here, <br />
+                      or click here to select files to view.
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </Dropzone>
-            {info}
+              </Dropzone>
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
+              {info}
+            </div>
             <div
               style={{
                 display: 'flex',
@@ -545,19 +556,26 @@ class App extends Component {
             {currFilePath || null}{' '}
           </div>{' '}
           {totalFiles > 0 ? (
-            <div style={{ width: 600 }}>
-              {`total:${totalFiles},current:${currFileNo}`}
-              <Slider
-                discrete
-                color="red"
-                settings={{
-                  start: currFileNo,
-                  min: 1,
-                  max: totalFiles,
-                  step: 1,
-                  onChange: this.switchImage,
-                }}
-              />
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
+              <div style={{ width: 600 }}>
+                {`total:${totalFiles},current:${currFileNo}`}
+                <Slider
+                  discrete
+                  color="red"
+                  settings={{
+                    start: currFileNo,
+                    min: 1,
+                    max: totalFiles,
+                    step: 1,
+                    onChange: this.switchImage,
+                  }}
+                />
+              </div>
             </div>
           ) : null}
           <div
