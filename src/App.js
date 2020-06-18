@@ -18,7 +18,7 @@ const dropZoneStyle = {
   borderRadius: 5,
   // margin: 30,
   // padding: 30,
-  width: 600,
+  width: 1280,
   height: 150,
   textAlign: 'center',
   // transition: 'all 0.5s',
@@ -27,7 +27,7 @@ const dropZoneStyle = {
 const emptyFile = {
   frameIndexes: [],
   currFrameIndex: 0,
-  fileInfo: '',
+  multiFileInfo: '',
   windowCenter: '',
   windowWidth: '',
   max: '',
@@ -44,7 +44,7 @@ class App extends Component {
     this.state = {
       ifWindowCenterMode: true,
       currFilePath: '',
-      // fileInfo: '',
+      // multiFileInfo: '',
       // currFrameIndex: 0,
       // frameIndexes: [],
       // windowCenter: '',
@@ -109,14 +109,14 @@ class App extends Component {
       const numFrames = image.getNumberOfFrames();
       if (numFrames > 1) {
         // console.log("frames:", numFrames);
-        const fileInfo = `It is multi-frame file (n=${numFrames})`;
+        const multiFileInfo = `It's multi-frame file (n=${numFrames})`;
 
         this.setState({
-          fileInfo,
+          multiFileInfo,
         });
       } else {
         this.setState({
-          fileInfo: '',
+          multiFileInfo: '',
         });
       }
       this.setState({
@@ -429,7 +429,7 @@ class App extends Component {
     };
     const {
       currFilePath,
-      fileInfo,
+      multiFileInfo,
       frameIndexes,
       currFrameIndex,
       ifWindowCenterMode,
@@ -448,6 +448,9 @@ class App extends Component {
     info += ` modality:${modality};photometric:${photometric}`;
     if (resX && resY) {
       info += ` resolution:${resX}x${resY}`;
+    }
+    if (multiFileInfo) {
+      info += `; ${multiFileInfo}`;
     }
     return (
       <div className="flex-container">
@@ -479,30 +482,58 @@ class App extends Component {
               </div>
             </Dropzone>
             {info}
-            <Form>
-              <Form.Field>
-                <Checkbox
-                  radio
-                  label="Window Center Mode (default)"
-                  name="checkboxRadioGroup"
-                  value="center"
-                  checked={ifWindowCenterMode}
-                  onChange={this.handleNormalizeModeChange}
-                />
-                {` c:${windowCenter};w:${windowWidth}`}
-              </Form.Field>
-              <Form.Field>
-                <Checkbox
-                  radio
-                  label="Max/Min Mode"
-                  name="checkboxRadioGroup"
-                  value="max"
-                  checked={!ifWindowCenterMode}
-                  onChange={this.handleNormalizeModeChange}
-                />
-                {` max:${max};min:${min}`}
-              </Form.Field>
-            </Form>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+              }}
+            >
+              <div>
+                <Form>
+                  <Form.Field>
+                    <Checkbox
+                      radio
+                      label="Window Center Mode (default)"
+                      name="checkboxRadioGroup"
+                      value="center"
+                      checked={ifWindowCenterMode}
+                      onChange={this.handleNormalizeModeChange}
+                    />
+                    {` c:${windowCenter};w:${windowWidth}`}
+                  </Form.Field>
+                  <Form.Field>
+                    <Checkbox
+                      radio
+                      label="Max/Min Mode"
+                      name="checkboxRadioGroup"
+                      value="max"
+                      checked={!ifWindowCenterMode}
+                      onChange={this.handleNormalizeModeChange}
+                    />
+                    {` max:${max};min:${min}`}
+                  </Form.Field>
+                </Form>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                }}
+              >
+                <div>
+                  {' '}
+                  {frameIndexes.length > 1 ? (
+                    <Dropdown
+                      placeholder="Switch Frame"
+                      selection
+                      onChange={this.handleSwitchFrame}
+                      options={frameIndexes}
+                      value={currFrameIndex}
+                    />
+                  ) : null}{' '}
+                </div>{' '}
+              </div>{' '}
+            </div>
           </div>
           <div
             style={{
@@ -513,28 +544,9 @@ class App extends Component {
             {' '}
             {currFilePath || null}{' '}
           </div>{' '}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'center',
-            }}
-          >
-            <div> {fileInfo || null} </div>{' '}
-            <div>
-              {' '}
-              {frameIndexes.length > 1 ? (
-                <Dropdown
-                  placeholder="Switch Frame"
-                  selection
-                  onChange={this.handleSwitchFrame}
-                  options={frameIndexes}
-                  value={currFrameIndex}
-                />
-              ) : null}{' '}
-            </div>{' '}
-          </div>{' '}
           <div style={{ width: 600 }}>
             {`total:${totalFiles},current:${currFileNo}`}
+
             <Slider
               discrete
               color="red"
