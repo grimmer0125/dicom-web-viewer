@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import { Slider } from 'react-semantic-ui-range';
 
-import { Dropdown, Form, Checkbox, Segment, Label } from 'semantic-ui-react';
+import { Dropdown, Form, Checkbox } from 'semantic-ui-react';
 // import logo from './logo.svg';
 // import './App.css';
 
@@ -55,8 +55,8 @@ class App extends Component {
       // resY: '',
       // photometric: '',
       // modality: '',
-      currFileNo: 1,
-      totalFiles: 1,
+      currFileNo: 0,
+      totalFiles: 0,
       ...emptyFile,
     };
     this.myCanvasRef = React.createRef();
@@ -97,7 +97,7 @@ class App extends Component {
 
     if (this.currentImage) {
       const { currFrameIndex } = this.state;
-      this.switchFrame(this.currentImage, currFrameIndex);
+      this.renderFrame(this.currentImage, currFrameIndex);
     }
   };
 
@@ -132,12 +132,12 @@ class App extends Component {
         currFrameIndex: 0,
       });
       this.currentImage = image;
-      this.switchFrame(this.currentImage, 0);
+      this.renderFrame(this.currentImage, 0);
     }
   };
 
-  switchFrame = (image, index) => {
-    console.log(`switch to ${index} Frame`);
+  renderFrame = (image, frameIndex) => {
+    console.log(`switch to ${frameIndex} Frame`);
 
     let ifRGB = false;
     let rgbMode = 0; // 0: rgbrgb... 1: rrrgggbbb
@@ -164,7 +164,7 @@ class App extends Component {
     // https://github.com/rii-mango/Daikon/issues/4
     // The new function will handle things like byte order, number of bytes per voxel, datatype, data scales, etc.
     // It returns an array of floating point values. So far this is only working for plain intensity data, not RGB.
-    const obj = image.getInterpretedData(false, true, index); // obj.data: float32array
+    const obj = image.getInterpretedData(false, true, frameIndex); // obj.data: float32array
     const width = obj.numCols;
     const height = obj.numRows;
     const windowCenter = image.getWindowCenter();
@@ -401,7 +401,7 @@ class App extends Component {
     this.setState({
       currFrameIndex: value,
     });
-    this.switchFrame(this.currentImage, value);
+    this.renderFrame(this.currentImage, value);
   };
 
   resizeTotFit(width, height) {
@@ -544,21 +544,22 @@ class App extends Component {
             {' '}
             {currFilePath || null}{' '}
           </div>{' '}
-          <div style={{ width: 600 }}>
-            {`total:${totalFiles},current:${currFileNo}`}
-
-            <Slider
-              discrete
-              color="red"
-              settings={{
-                start: currFileNo,
-                min: 1,
-                max: totalFiles,
-                step: 1,
-                onChange: this.switchImage,
-              }}
-            />
-          </div>
+          {totalFiles > 0 ? (
+            <div style={{ width: 600 }}>
+              {`total:${totalFiles},current:${currFileNo}`}
+              <Slider
+                discrete
+                color="red"
+                settings={{
+                  start: currFileNo,
+                  min: 1,
+                  max: totalFiles,
+                  step: 1,
+                  onChange: this.switchImage,
+                }}
+              />
+            </div>
+          ) : null}
           <div
             style={{
               display: 'flex',
