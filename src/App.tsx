@@ -10,6 +10,7 @@ import {
 
 import { Slider } from "react-semantic-ui-range";
 import Dropzone from "react-dropzone";
+import Hotkeys from "react-hot-keys";
 import * as daikon from "daikon";
 
 const { fromEvent } = require("file-selector");
@@ -461,6 +462,29 @@ class App extends Component<{}, State> {
     return scale;
   }
 
+  onKeyDown = (keyName: string) => {
+    const { totalFiles, currFileNo } = this.state;
+    let newFileNo = currFileNo;
+    if (totalFiles > 1) {
+      console.log("test:onKeyDown", keyName);
+      if (keyName === "right") {
+        newFileNo += 1;
+        if (newFileNo > totalFiles) {
+          return;
+        }
+      } else if (keyName === "left") {
+        newFileNo -= 1;
+        if (newFileNo < 1) {
+          return;
+        }
+      }
+    } else {
+      return;
+    }
+
+    this.switchImage(newFileNo);
+  };
+
   render() {
     const {
       currFilePath,
@@ -479,7 +503,7 @@ class App extends Component<{}, State> {
       currFileNo,
       totalFiles,
     } = this.state;
-    let info = "[Info]";
+    let info = "[meta]";
     info += ` modality:${modality};photometric:${photometric}`;
     if (resX && resY) {
       info += ` resolution:${resX}x${resY}`;
@@ -488,77 +512,51 @@ class App extends Component<{}, State> {
       info += `; ${multiFileInfo}`;
     }
     return (
-      <div className="flex-container">
-        <div>
-          <div className="flex-container">
-            <div>DICOM Image Viewer</div>
-          </div>
+      <Hotkeys
+        allowRepeat
+        keyName="right,left"
+        onKeyDown={this.onKeyDown}
+        // onKeyUp={this.onKeyUp.bind(this)}
+      >
+        <div className="flex-container">
           <div>
             <div className="flex-container">
-              <Dropzone
-                preventDropOnDocument={false}
-                style={dropZoneStyle}
-                getDataTransferItems={(evt) => fromEvent(evt)}
-                onDrop={this.onDropFile}
-              >
-                <div
-                  style={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    alignItems: "center",
-                  }}
+              <div>DICOM Image Viewer</div>
+            </div>
+            <div>
+              <div className="flex-container">
+                <Dropzone
+                  preventDropOnDocument={false}
+                  style={dropZoneStyle}
+                  getDataTransferItems={(evt) => fromEvent(evt)}
+                  onDrop={this.onDropFile}
                 >
-                  <div>
-                    <p>
-                      {" "}
-                      Try dropping DICOM image files/folder here, <br />
-                      or click here to select files to view.
-                    </p>
+                  <div
+                    style={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div>
+                      <p>
+                        {" "}
+                        Try dropping DICOM image files/folder here, <br />
+                        or click here to select files to view.
+                      </p>
+                    </div>
                   </div>
-                </div>
-              </Dropzone>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-              {info}
-            </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-              <div>
-                <Form>
-                  <Form.Field>
-                    <Checkbox
-                      radio
-                      label="Window Center Mode (default)"
-                      name="checkboxRadioGroup"
-                      value="center"
-                      checked={ifWindowCenterMode}
-                      onChange={this.handleNormalizeModeChange}
-                    />
-                    {` c:${windowCenter};w:${windowWidth}`}
-                  </Form.Field>
-                  <Form.Field>
-                    <Checkbox
-                      radio
-                      label="Max/Min Mode"
-                      name="checkboxRadioGroup"
-                      value="max"
-                      checked={!ifWindowCenterMode}
-                      onChange={this.handleNormalizeModeChange}
-                    />
-                    {` max:${max};min:${min}`}
-                  </Form.Field>
-                </Form>
+                </Dropzone>
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+              >
+                {info}
               </div>
               <div
                 style={{
@@ -567,62 +565,96 @@ class App extends Component<{}, State> {
                 }}
               >
                 <div>
-                  {" "}
-                  {frameIndexes.length > 1 ? (
-                    <Dropdown
-                      placeholder="Switch Frame"
-                      selection
-                      onChange={this.handleSwitchFrame}
-                      options={frameIndexes}
-                      value={currFrameIndex}
-                    />
-                  ) : null}{" "}
+                  <Form>
+                    <Form.Field>
+                      <Checkbox
+                        radio
+                        label="Window Center Mode"
+                        name="checkboxRadioGroup"
+                        value="center"
+                        checked={ifWindowCenterMode}
+                        onChange={this.handleNormalizeModeChange}
+                      />
+                      {` c:${windowCenter};w:${windowWidth}`}
+                    </Form.Field>
+                    <Form.Field>
+                      <Checkbox
+                        radio
+                        label="Max/Min Mode"
+                        name="checkboxRadioGroup"
+                        value="max"
+                        checked={!ifWindowCenterMode}
+                        onChange={this.handleNormalizeModeChange}
+                      />
+                      {` max:${max};min:${min}`}
+                    </Form.Field>
+                  </Form>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  <div>
+                    {" "}
+                    {frameIndexes.length > 1 ? (
+                      <Dropdown
+                        placeholder="Switch Frame"
+                        selection
+                        onChange={this.handleSwitchFrame}
+                        options={frameIndexes}
+                        value={currFrameIndex}
+                      />
+                    ) : null}{" "}
+                  </div>{" "}
                 </div>{" "}
-              </div>{" "}
+              </div>
             </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            {" "}
-            {currFilePath || null}{" "}
-          </div>{" "}
-          {totalFiles > 0 ? (
             <div
               style={{
                 display: "flex",
                 justifyContent: "center",
               }}
             >
-              <div style={{ width: 600 }}>
-                {`total:${totalFiles},current:${currFileNo}`}
-                <Slider
-                  discrete
-                  color="red"
-                  settings={{
-                    start: currFileNo,
-                    min: 1,
-                    max: totalFiles,
-                    step: 1,
-                    onChange: this.switchImage,
-                  }}
-                />
+              {" "}
+              {currFilePath || null}{" "}
+            </div>{" "}
+            {totalFiles > 0 ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+              >
+                <div style={{ width: 600 }}>
+                  {`[support right/left key] total:${totalFiles},current:${currFileNo}`}
+                  <Slider
+                    value={currFileNo}
+                    discrete
+                    color="red"
+                    settings={{
+                      start: 1,
+                      min: 1,
+                      max: totalFiles,
+                      step: 1,
+                      onChange: this.switchImage,
+                    }}
+                  />
+                </div>
               </div>
-            </div>
-          ) : null}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-            }}
-          >
-            <canvas ref={this.myCanvasRef} width={128} height={128} />
-          </div>{" "}
+            ) : null}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
+              <canvas ref={this.myCanvasRef} width={128} height={128} />
+            </div>{" "}
+          </div>
         </div>
-      </div>
+      </Hotkeys>
     );
   }
 }
