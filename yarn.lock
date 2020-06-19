@@ -3523,6 +3523,14 @@ d@1, d@^1.0.1:
     es5-ext "^0.10.50"
     type "^1.0.1"
 
+daikon@^1.2.42:
+  version "1.2.42"
+  resolved "https://registry.yarnpkg.com/daikon/-/daikon-1.2.42.tgz#7239d66b5f9638006f0674f86514b1fdaca33e7c"
+  integrity sha512-uEJKRNpJo6lWCMr1UehBJLCnpsmoY4cmaedjL03UCeUmyoV2SsCYiEo8I+rhfuoj2FHqtDJFRGfZAW729berww==
+  dependencies:
+    jpeg-lossless-decoder-js "git+https://github.com/rii-mango/JPEGLosslessDecoderJS.git"
+    pako "^1.0.6"
+
 damerau-levenshtein@^1.0.4:
   version "1.0.6"
   resolved "https://registry.yarnpkg.com/damerau-levenshtein/-/damerau-levenshtein-1.0.6.tgz#143c1641cb3d85c60c32329e26899adea8701791"
@@ -6211,6 +6219,10 @@ jest@24.9.0:
     import-local "^2.0.0"
     jest-cli "^24.9.0"
 
+"jpeg-lossless-decoder-js@git+https://github.com/rii-mango/JPEGLosslessDecoderJS.git":
+  version "2.0.4"
+  resolved "git+https://github.com/rii-mango/JPEGLosslessDecoderJS.git#78fe90c7cae985b1a394a66f99c81633144bb867"
+
 "js-tokens@^3.0.0 || ^4.0.0", js-tokens@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/js-tokens/-/js-tokens-4.0.0.tgz#19203fb59991df98e3a287050d4647cdeaf32499"
@@ -7446,7 +7458,7 @@ p-try@^2.0.0:
   resolved "https://registry.yarnpkg.com/p-try/-/p-try-2.2.0.tgz#cb2868540e313d61de58fafbe35ce9004d5540e6"
   integrity sha512-R4nPAVTAU0B9D35/Gk3uJf/7XYbQcyohSKdvAxIRSNghFl4e71hVoGnBNQz9cWaXxO2I10KTC+3jMdvvoKw6dQ==
 
-pako@~1.0.5:
+pako@^1.0.6, pako@~1.0.5:
   version "1.0.11"
   resolved "https://registry.yarnpkg.com/pako/-/pako-1.0.11.tgz#6c9599d340d54dfd3946380252a35705a6b992bf"
   integrity sha512-4hLB8Py4zZce5s4yd9XzopqwVv/yGNhV1Bl8NTmCq1763HeK2+EwVTv+leGeL13Dnh2wfbqowVPXCIO0z4taYw==

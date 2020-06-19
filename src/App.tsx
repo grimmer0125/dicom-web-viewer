@@ -10,15 +10,17 @@ import {
 
 import { Slider } from "react-semantic-ui-range";
 import Dropzone from "react-dropzone";
+import * as daikon from "daikon";
+
 const { fromEvent } = require("file-selector");
 
-declare global {
-  interface Window {
-    daikon: any;
-  }
-}
+// declare global {
+//   interface Window {
+//     daikon: any;
+//   }
+// }
 
-const daikon = window.daikon;
+// const daikon = window.daikon;
 
 const dropZoneStyle = {
   borderWidth: 2,
