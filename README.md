@@ -38,8 +38,10 @@ Make sure you have [`yarn`](https://yarnpkg.com/) installed first.
 
 ## Usage
 
-Just drag your DICOM files into Chrome browser
+Just drag your DICOM files/folder into Chrome browser and extension mode is anable to click DICOM url to view online DICOM files.
 
-## Issues
+### Not support yet:
 
-node12, node14 fail to yarn install due to fsvevents.
+1. DICOM video format.
+2. some non-linear Modality LUT case
+3. YBR Photometric Interpretation
