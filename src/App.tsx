@@ -1,49 +1,77 @@
-import React, { Component } from 'react';
-import { Slider } from 'react-semantic-ui-range';
+import React, { Component } from "react";
 
-import { Dropdown, Form, Checkbox } from 'semantic-ui-react';
-// import logo from './logo.svg';
-// import './App.css';
+import {
+  Dropdown,
+  Form,
+  Checkbox,
+  CheckboxProps,
+  DropdownProps,
+} from "semantic-ui-react";
 
-import Dropzone from 'react-dropzone';
+import { Slider } from "react-semantic-ui-range";
+import Dropzone from "react-dropzone";
+const { fromEvent } = require("file-selector");
 
-const { fromEvent } = require('file-selector');
+declare global {
+  interface Window {
+    daikon: any;
+  }
+}
 
 const daikon = window.daikon;
 
 const dropZoneStyle = {
   borderWidth: 2,
-  borderColor: '#666',
-  borderStyle: 'dashed',
+  borderColor: "#666",
+  borderStyle: "dashed",
   borderRadius: 5,
-  // margin: 30,
-  // padding: 30,
   width: 800,
   height: 150,
-  textAlign: 'center',
-  // transition: 'all 0.5s',
+  // textAlign: "center",
 };
 
 const emptyFile = {
   frameIndexes: [],
   currFrameIndex: 0,
-  multiFileInfo: '',
-  windowCenter: '',
-  windowWidth: '',
-  max: '',
-  min: '',
-  resX: '',
-  resY: '',
-  photometric: '',
-  modality: '',
+  multiFileInfo: "",
+  windowCenter: "",
+  windowWidth: "",
+  max: "",
+  min: "",
+  resX: "",
+  resY: "",
+  photometric: "",
+  modality: "",
 };
 
-class App extends Component {
-  constructor(props) {
-    super(props);
+type State = {
+  ifWindowCenterMode: boolean;
+  currFilePath: string;
+  currFileNo: number;
+  totalFiles: number;
+  frameIndexes: any[];
+  currFrameIndex: number;
+  multiFileInfo: string;
+  windowCenter: string;
+  windowWidth: string;
+  max: string;
+  min: string;
+  resX: string;
+  resY: string;
+  photometric: string;
+  modality: string;
+};
+
+class App extends Component<{}, State> {
+  myCanvasRef: React.RefObject<HTMLCanvasElement>;
+  files: any[];
+  currentImage: any;
+
+  constructor() {
+    super({});
     this.state = {
       ifWindowCenterMode: true,
-      currFilePath: '',
+      currFilePath: "",
       // multiFileInfo: '',
       // currFrameIndex: 0,
       // frameIndexes: [],
@@ -70,8 +98,11 @@ class App extends Component {
     // 'http://localhost#http://medistim.com/wp-content/uploads/2016/07/ttfm.dcm'; //
     // console.log("current url:", url);
 
-    if (url.toLowerCase().indexOf('.dcm') !== -1 || url.toLowerCase().indexOf('.dicom') !== -1) {
-      const paths = url.split('#');
+    if (
+      url.toLowerCase().indexOf(".dcm") !== -1 ||
+      url.toLowerCase().indexOf(".dicom") !== -1
+    ) {
+      const paths = url.split("#");
       if (paths.length > 1) {
         const filePath = paths[1];
 
@@ -88,8 +119,12 @@ class App extends Component {
     }
   }
 
-  handleNormalizeModeChange = (e, { value }) => {
-    if (value === 'center') {
+  handleNormalizeModeChange = (
+    e: React.FormEvent<HTMLInputElement>,
+    data: CheckboxProps
+  ) => {
+    const { value } = data;
+    if (value === "center") {
       this.setState({ ifWindowCenterMode: true });
     } else {
       this.setState({ ifWindowCenterMode: false });
@@ -101,8 +136,8 @@ class App extends Component {
     }
   };
 
-  renderImage = (buffer) => {
-    console.log('renderImage bytelength:', buffer.byteLength);
+  renderImage = (buffer: any) => {
+    console.log("renderImage bytelength:", buffer.byteLength);
     if (buffer) {
       daikon.Parser.verbose = true;
       const image = daikon.Series.parseImage(new DataView(buffer));
@@ -116,7 +151,7 @@ class App extends Component {
         });
       } else {
         this.setState({
-          multiFileInfo: '',
+          multiFileInfo: "",
         });
       }
       this.setState({
@@ -127,7 +162,7 @@ class App extends Component {
           (v, k) => ({
             text: k,
             value: k,
-          }),
+          })
         ),
         currFrameIndex: 0,
       });
@@ -136,7 +171,7 @@ class App extends Component {
     }
   };
 
-  renderFrame = (image, frameIndex) => {
+  renderFrame = (image: any, frameIndex: number) => {
     console.log(`switch to ${frameIndex} Frame`);
 
     let ifRGB = false;
@@ -145,17 +180,12 @@ class App extends Component {
     const modality = image.getModality();
     if (photometric !== null) {
       const mode = image.getPlanarConfig();
-      console.log('Planar mode:', mode);
-      if (photometric.trim().indexOf('RGB') !== -1) {
+      console.log("Planar mode:", mode);
+      if (photometric.trim().indexOf("RGB") !== -1) {
         ifRGB = true;
 
         rgbMode = image.getPlanarConfig() || 0;
-      } else if (
-        photometric
-          .trim()
-          .toLowerCase()
-          .indexOf('palette') !== -1
-      ) {
+      } else if (photometric.trim().toLowerCase().indexOf("palette") !== -1) {
         ifRGB = true;
       }
     }
@@ -165,8 +195,8 @@ class App extends Component {
     // The new function will handle things like byte order, number of bytes per voxel, datatype, data scales, etc.
     // It returns an array of floating point values. So far this is only working for plain intensity data, not RGB.
     const obj = image.getInterpretedData(false, true, frameIndex); // obj.data: float32array
-    const width = obj.numCols;
-    const height = obj.numRows;
+    const width: number = obj.numCols;
+    const height: number = obj.numRows;
     const windowCenter = image.getWindowCenter();
     const windowWidth = image.getWindowWidth();
     this.setState({
@@ -174,8 +204,8 @@ class App extends Component {
       windowWidth,
       max: obj.max,
       min: obj.min,
-      resX: width,
-      resY: height,
+      resX: width.toString(),
+      resY: height.toString(),
       modality,
       photometric,
     });
@@ -198,7 +228,7 @@ class App extends Component {
         }
       }
     } else {
-      console.log('no valid window center/width');
+      console.log("no valid window center/width");
       ({ max, min } = obj);
     }
 
@@ -225,17 +255,20 @@ class App extends Component {
     // }
 
     if (!this.myCanvasRef.current) {
-      console.log('this.myCanvasRef is not ready, return');
+      console.log("this.myCanvasRef is not ready, return");
       return;
     }
 
     // const c = this.myCanvasRef.current; // document.getElementById("myCanvas");
-    const c = document.createElement('canvas');
+    const c = document.createElement("canvas");
     c.width = width;
     c.height = height;
     // Create context from canvas
-    const ctx = c.getContext('2d');
+    const ctx = c.getContext("2d");
     // Create ImageData object
+    if (!ctx) {
+      return;
+    }
     const imgData = ctx.createImageData(width, height);
     const { data } = imgData; // .data; // width x height x 4 (RGBA), Uint8ClampedArray
 
@@ -294,21 +327,21 @@ class App extends Component {
 
     const scale = this.resizeTotFit(width, height);
     if (scale !== 1) {
-      console.log('scale:', scale);
+      console.log("scale:", scale);
     }
-    const c2 = this.myCanvasRef.current;
+    const c2: any = this.myCanvasRef.current;
     c2.width = width / scale;
     c2.height = height / scale;
-    const ctx2 = c2.getContext('2d');
+    const ctx2 = c2.getContext("2d");
     // ctx2.scale(1 / scale, 1 / scale); is equal to ctx2.drawImage(c, 0, 0)
     ctx2.drawImage(c, 0, 0, c2.width, c2.height);
   };
 
-  fetchFile = (url) => {
-    if (url.indexOf('file://') === 0) {
+  fetchFile = (url: string) => {
+    if (url.indexOf("file://") === 0) {
       const xhr = new XMLHttpRequest();
-      xhr.open('GET', url, true);
-      xhr.responseType = 'arraybuffer';
+      xhr.open("GET", url, true);
+      xhr.responseType = "arraybuffer";
       xhr.onload = () => {
         const arrayBuffer = xhr.response;
         this.renderImage(arrayBuffer);
@@ -317,20 +350,20 @@ class App extends Component {
     } else {
       // NOTE: copy from https://github.com/my-codeworks/tiff-viewer-extension/blob/master/background.js#L29
       // TODO: figure it out why using arraybuffer will fail
-      console.log('Starting XHR request for', url);
+      console.log("Starting XHR request for", url);
       const request = new XMLHttpRequest();
-      request.open('GET', url, false);
-      request.overrideMimeType('text/plain; charset=x-user-defined');
+      request.open("GET", url, false);
+      request.overrideMimeType("text/plain; charset=x-user-defined");
       request.send();
-      console.log('Finished XHR request');
+      console.log("Finished XHR request");
       const data = request.responseText;
       let buffer;
-      let view;
+      let view: DataView;
       let a_byte;
       buffer = new ArrayBuffer(data.length);
       view = new DataView(buffer);
-      data.split('').forEach((c, i) => {
-        a_byte = c.charCodeAt();
+      data.split("").forEach((c, i) => {
+        a_byte = c.charCodeAt(0);
         view.setUint8(i, a_byte & 0xff);
       });
       const buffer2 = view.buffer;
@@ -338,7 +371,7 @@ class App extends Component {
     }
   };
 
-  switchImage = (value) => {
+  switchImage = (value: number) => {
     this.setState({
       currFileNo: value,
     });
@@ -348,15 +381,18 @@ class App extends Component {
   };
 
   /* eslint-disable */
-  loadFile(file) {
+  loadFile(file: any) {
     this.setState({
       currFilePath: file.name,
     });
 
-    if (file.name.toLowerCase().indexOf('dcm') === -1 && file.name.toLowerCase().indexOf('dicom') === -1) {
-      console.log('not dicom file');
-      const c2 = this.myCanvasRef.current;
-      const ctx2 = c2.getContext('2d');
+    if (
+      file.name.toLowerCase().indexOf("dcm") === -1 &&
+      file.name.toLowerCase().indexOf("dicom") === -1
+    ) {
+      console.log("not dicom file");
+      const c2: any = this.myCanvasRef.current;
+      const ctx2 = c2.getContext("2d");
       ctx2.clearRect(0, 0, c2.width, c2.height);
       this.setState({
         ...emptyFile,
@@ -371,19 +407,19 @@ class App extends Component {
         const fileContent = reader.result;
         this.renderImage(fileContent);
       } catch (e) {
-        console.log('parse dicom error:', e);
+        console.log("parse dicom error:", e);
       }
     };
-    reader.onabort = () => console.log('file reading was aborted');
+    reader.onabort = () => console.log("file reading was aborted");
     // e.g. "drag a folder" will fail to read
-    reader.onerror = () => console.log('file reading has failed');
+    reader.onerror = () => console.log("file reading has failed");
     reader.readAsArrayBuffer(file);
   }
 
-  onDropFile = (acceptedFiles) => {
+  onDropFile = (acceptedFiles: any[]) => {
     if (acceptedFiles.length > 0) {
       this.files = acceptedFiles;
-      console.log('files,', this.files.length);
+      console.log("files,", this.files.length);
       const file = acceptedFiles[0];
       this.setState({
         totalFiles: acceptedFiles.length,
@@ -393,10 +429,13 @@ class App extends Component {
     }
   };
 
-  handleSwitchFrame = (e, obj) => {
-    const { value } = obj;
+  handleSwitchFrame = (
+    e: React.SyntheticEvent<HTMLElement, Event>,
+    obj: DropdownProps
+  ) => {
+    const value = obj.value as number;
 
-    console.log('switch frame:', value);
+    console.log("switch frame:", value);
 
     this.setState({
       currFrameIndex: value,
@@ -404,7 +443,7 @@ class App extends Component {
     this.renderFrame(this.currentImage, value);
   };
 
-  resizeTotFit(width, height) {
+  resizeTotFit(width: number, height: number) {
     let scale = 1;
     const size = {
       maxWidth: 1280,
@@ -421,12 +460,6 @@ class App extends Component {
   }
 
   render() {
-    const settings = {
-      start: 2,
-      min: 0,
-      max: 10,
-      step: 1,
-    };
     const {
       currFilePath,
       multiFileInfo,
@@ -444,7 +477,7 @@ class App extends Component {
       currFileNo,
       totalFiles,
     } = this.state;
-    let info = '[Info]';
+    let info = "[Info]";
     info += ` modality:${modality};photometric:${photometric}`;
     if (resX && resY) {
       info += ` resolution:${resX}x${resY}`;
@@ -468,17 +501,17 @@ class App extends Component {
               >
                 <div
                   style={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'center',
-                    alignItems: 'center',
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
                   }}
                 >
                   <div>
                     <p>
-                      {' '}
-                      Try dropping DICOM image files here, <br />
+                      {" "}
+                      Try dropping DICOM image files/folder here, <br />
                       or click here to select files to view.
                     </p>
                   </div>
@@ -487,16 +520,16 @@ class App extends Component {
             </div>
             <div
               style={{
-                display: 'flex',
-                justifyContent: 'center',
+                display: "flex",
+                justifyContent: "center",
               }}
             >
               {info}
             </div>
             <div
               style={{
-                display: 'flex',
-                justifyContent: 'center',
+                display: "flex",
+                justifyContent: "center",
               }}
             >
               <div>
@@ -527,12 +560,12 @@ class App extends Component {
               </div>
               <div
                 style={{
-                  display: 'flex',
-                  justifyContent: 'center',
+                  display: "flex",
+                  justifyContent: "center",
                 }}
               >
                 <div>
-                  {' '}
+                  {" "}
                   {frameIndexes.length > 1 ? (
                     <Dropdown
                       placeholder="Switch Frame"
@@ -541,25 +574,25 @@ class App extends Component {
                       options={frameIndexes}
                       value={currFrameIndex}
                     />
-                  ) : null}{' '}
-                </div>{' '}
-              </div>{' '}
+                  ) : null}{" "}
+                </div>{" "}
+              </div>{" "}
             </div>
           </div>
           <div
             style={{
-              display: 'flex',
-              justifyContent: 'center',
+              display: "flex",
+              justifyContent: "center",
             }}
           >
-            {' '}
-            {currFilePath || null}{' '}
-          </div>{' '}
+            {" "}
+            {currFilePath || null}{" "}
+          </div>{" "}
           {totalFiles > 0 ? (
             <div
               style={{
-                display: 'flex',
-                justifyContent: 'center',
+                display: "flex",
+                justifyContent: "center",
               }}
             >
               <div style={{ width: 600 }}>
@@ -580,12 +613,12 @@ class App extends Component {
           ) : null}
           <div
             style={{
-              display: 'flex',
-              justifyContent: 'center',
+              display: "flex",
+              justifyContent: "center",
             }}
           >
             <canvas ref={this.myCanvasRef} width={128} height={128} />
-          </div>{' '}
+          </div>{" "}
         </div>
       </div>
     );
