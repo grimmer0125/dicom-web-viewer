@@ -521,7 +521,11 @@ class App extends Component<{}, State> {
         <div className="flex-container">
           <div>
             <div className="flex-container">
-              <div>DICOM Image Viewer</div>
+              <div>
+                DICOM Image Viewer (feat: 1. click DICOM url 2. click extension
+                icon to open viewer page to load files/folder 3. drag any DICOM
+                file into Chrome without opening viewer first
+              </div>
             </div>
             <div>
               <div className="flex-container">
@@ -544,7 +548,9 @@ class App extends Component<{}, State> {
                       <p>
                         {" "}
                         Try dropping DICOM image files/folder here, <br />
-                        or click here to select files to view.
+                        or click here to select files to view. <br />
+                        You need to enable file url access in extenstion DETAILS
+                        setting page.
                       </p>
                     </div>
                   </div>
