@@ -421,8 +421,11 @@ class App extends Component<{}, State> {
 
   onDropFile = (acceptedFiles: any[]) => {
     if (acceptedFiles.length > 0) {
+      acceptedFiles.sort((a, b) => {
+        return a.name.localeCompare(b.name);
+      });
       this.files = acceptedFiles;
-      console.log("files,", this.files.length);
+      // console.log("files,", this.files.length);
       const file = acceptedFiles[0];
       this.setState({
         totalFiles: acceptedFiles.length,
