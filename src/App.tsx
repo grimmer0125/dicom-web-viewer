@@ -68,6 +68,7 @@ type State = {
 class App extends Component<{}, State> {
   myCanvasRef: React.RefObject<HTMLCanvasElement>;
   files: any[];
+  isOnlineMode = true;
   currentImage: any;
 
   constructor() {
@@ -105,19 +106,14 @@ class App extends Component<{}, State> {
       url.toLowerCase().indexOf(".dcm") !== -1 ||
       url.toLowerCase().indexOf(".dicom") !== -1
     ) {
-      const paths = url.split("#");
-      if (paths.length > 1) {
-        const filePath = paths[1];
+      // const paths = url.split("#");
+      const firstHash = url.indexOf("#");
+      if (firstHash > -1) {
+        const fileURLs = url.substring(firstHash + 1, url.length);
+        // const filePath = paths[1];
+        // this.fetchFile(filePath);
 
-        // console.log("dicom html loads, after hash:", filePath);
-
-        this.setState({
-          currFilePath: decodeURI(filePath),
-        });
-
-        // document.getElementById("file").innerHTML = filePath;
-
-        this.fetchFile(filePath);
+        this.onOpenFileURLs(fileURLs);
       }
     }
   }
@@ -340,7 +336,33 @@ class App extends Component<{}, State> {
     ctx2.drawImage(c, 0, 0, c2.width, c2.height);
   };
 
+  onOpenFileURLs(fileURLStr: string) {
+    // const filePath = paths[1];
+    // file:///fjdas;fjsajfajsk;lf
+    const files = fileURLStr.split("file://");
+    files.sort((a, b) => {
+      return a.localeCompare(b);
+    });
+    console.log("sorted files:", files);
+    this.files = [];
+    files.forEach((file, index) => {
+      if (index !== 0) {
+        this.files.push(`file://${file}`);
+      }
+    });
+    this.setState({
+      totalFiles: this.files.length,
+      currFileNo: 1,
+    });
+
+    this.fetchFile(this.files[0]);
+  }
+
   fetchFile = (url: string) => {
+    this.setState({
+      currFilePath: decodeURI(url),
+    });
+
     if (url.indexOf("file://") === 0) {
       const xhr = new XMLHttpRequest();
       xhr.open("GET", url, true);
@@ -380,7 +402,11 @@ class App extends Component<{}, State> {
     });
 
     const newFile = this.files[value - 1];
-    this.loadFile(newFile);
+    if (!this.isOnlineMode) {
+      this.loadFile(newFile);
+    } else {
+      this.fetchFile(newFile);
+    }
   };
 
   /* eslint-disable */
@@ -424,14 +450,13 @@ class App extends Component<{}, State> {
       acceptedFiles.sort((a, b) => {
         return a.name.localeCompare(b.name);
       });
+      this.isOnlineMode = false;
       this.files = acceptedFiles;
-      // console.log("files,", this.files.length);
-      const file = acceptedFiles[0];
       this.setState({
-        totalFiles: acceptedFiles.length,
+        totalFiles: this.files.length,
         currFileNo: 1,
       });
-      this.loadFile(file);
+      this.loadFile(this.files[0]);
     }
   };
 
