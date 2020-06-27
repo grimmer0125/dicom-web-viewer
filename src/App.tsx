@@ -1,4 +1,6 @@
 import React, { Component } from "react";
+import Slider from "rc-slider";
+import "rc-slider/assets/index.css";
 
 import {
   Dropdown,
@@ -8,7 +10,6 @@ import {
   DropdownProps,
 } from "semantic-ui-react";
 
-import { Slider } from "react-semantic-ui-range";
 import Dropzone from "react-dropzone";
 import Hotkeys from "react-hot-keys";
 import * as daikon from "daikon";
@@ -664,15 +665,10 @@ class App extends Component<{}, State> {
                   {`[support right/left key] total:${totalFiles},current:${currFileNo}`}
                   <Slider
                     value={currFileNo}
-                    discrete
-                    color="red"
-                    settings={{
-                      start: 1,
-                      min: 1,
-                      max: totalFiles,
-                      step: 1,
-                      onChange: this.switchImage,
-                    }}
+                    step={1}
+                    min={1}
+                    max={totalFiles}
+                    onChange={this.switchImage}
                   />
                 </div>
               </div>
