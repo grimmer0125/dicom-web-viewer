@@ -364,6 +364,10 @@ class App extends Component<{}, State> {
       currFilePath: decodeURI(url),
     });
 
+    if (!this.checkDicomNameAndResetInvalid(url)) {
+      return;
+    }
+
     if (url.indexOf("file://") === 0) {
       const xhr = new XMLHttpRequest();
       xhr.open("GET", url, true);
@@ -410,15 +414,10 @@ class App extends Component<{}, State> {
     }
   };
 
-  /* eslint-disable */
-  loadFile(file: any) {
-    this.setState({
-      currFilePath: file.name,
-    });
-
+  checkDicomNameAndResetInvalid(name: string) {
     if (
-      file.name.toLowerCase().indexOf("dcm") === -1 &&
-      file.name.toLowerCase().indexOf("dicom") === -1
+      name.toLowerCase().endsWith(".dcm") === false &&
+      name.toLowerCase().endsWith(".dicom") === false
     ) {
       console.log("not dicom file");
       const c2: any = this.myCanvasRef.current;
@@ -428,6 +427,19 @@ class App extends Component<{}, State> {
         ...emptyFile,
       });
 
+      return false;
+    }
+
+    return true;
+  }
+
+  /* eslint-disable */
+  loadFile(file: any) {
+    this.setState({
+      currFilePath: file.name,
+    });
+
+    if (!this.checkDicomNameAndResetInvalid(file.name)) {
       return;
     }
 
