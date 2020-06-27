@@ -36,7 +36,7 @@ const dropZoneStyle = {
 const emptyFile = {
   frameIndexes: [],
   currFrameIndex: 0,
-  multiFileInfo: "",
+  multiFrameInfo: "",
   windowCenter: "",
   windowWidth: "",
   max: "",
@@ -54,7 +54,7 @@ type State = {
   totalFiles: number;
   frameIndexes: any[];
   currFrameIndex: number;
-  multiFileInfo: string;
+  multiFrameInfo: string;
   windowCenter: string;
   windowWidth: string;
   max: string;
@@ -75,7 +75,7 @@ class App extends Component<{}, State> {
     this.state = {
       ifWindowCenterMode: true,
       currFilePath: "",
-      // multiFileInfo: '',
+      // multiFrameInfo: '',
       // currFrameIndex: 0,
       // frameIndexes: [],
       // windowCenter: '',
@@ -147,14 +147,14 @@ class App extends Component<{}, State> {
       const numFrames = image.getNumberOfFrames();
       if (numFrames > 1) {
         // console.log("frames:", numFrames);
-        const multiFileInfo = `It's multi-frame file (n=${numFrames})`;
+        const multiFrameInfo = `It's multi-frame file (n=${numFrames})`;
 
         this.setState({
-          multiFileInfo,
+          multiFrameInfo,
         });
       } else {
         this.setState({
-          multiFileInfo: "",
+          multiFrameInfo: "",
         });
       }
       this.setState({
@@ -469,7 +469,6 @@ class App extends Component<{}, State> {
     const { totalFiles, currFileNo } = this.state;
     let newFileNo = currFileNo;
     if (totalFiles > 1) {
-      console.log("test:onKeyDown", keyName);
       if (keyName === "right") {
         newFileNo += 1;
         if (newFileNo > totalFiles) {
@@ -491,7 +490,7 @@ class App extends Component<{}, State> {
   render() {
     const {
       currFilePath,
-      multiFileInfo,
+      multiFrameInfo,
       frameIndexes,
       currFrameIndex,
       ifWindowCenterMode,
@@ -511,8 +510,8 @@ class App extends Component<{}, State> {
     if (resX && resY) {
       info += ` resolution:${resX}x${resY}`;
     }
-    if (multiFileInfo) {
-      info += `; ${multiFileInfo}`;
+    if (multiFrameInfo) {
+      info += `; ${multiFrameInfo}`;
     }
     return (
       <Hotkeys
