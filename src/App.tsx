@@ -126,15 +126,17 @@ class App extends Component<{}, State> {
     data: CheckboxProps
   ) => {
     const { value } = data;
+    let ifWindowCenterMode;
     if (value === "center") {
-      this.setState({ ifWindowCenterMode: true });
+      ifWindowCenterMode = true;
     } else {
-      this.setState({ ifWindowCenterMode: false });
+      ifWindowCenterMode = false;
     }
+    this.setState({ ifWindowCenterMode });
 
     if (this.currentImage) {
       const { currFrameIndex } = this.state;
-      this.renderFrame(this.currentImage, currFrameIndex);
+      this.renderFrame(this.currentImage, currFrameIndex, ifWindowCenterMode);
     }
   };
 
@@ -173,7 +175,11 @@ class App extends Component<{}, State> {
     }
   };
 
-  renderFrame = (image: any, frameIndex: number) => {
+  renderFrame = (
+    image: any,
+    frameIndex: number,
+    ifWindowCenterMode?: boolean
+  ) => {
     console.log(`switch to ${frameIndex} Frame`);
 
     let ifRGB = false;
@@ -216,10 +222,15 @@ class App extends Component<{}, State> {
 
     let max;
     let min;
-    const { ifWindowCenterMode } = this.state;
+    if (ifWindowCenterMode === undefined) {
+      ({ ifWindowCenterMode } = this.state);
+    }
     if (!ifWindowCenterMode) {
+      console.log("mode1");
       ({ max, min } = obj);
     } else if (windowCenter && windowWidth) {
+      console.log("mode2");
+
       min = windowCenter - Math.floor(windowWidth / 2);
       max = windowCenter + Math.floor(windowWidth / 2);
 
