@@ -4,7 +4,6 @@ import "rc-slider/assets/index.css";
 
 import {
   Dropdown,
-  Form,
   Checkbox,
   CheckboxProps,
   DropdownProps,
@@ -16,13 +15,57 @@ import * as daikon from "daikon";
 
 const { fromEvent } = require("file-selector");
 
-// declare global {
-//   interface Window {
-//     daikon: any;
-//   }
-// }
+enum NormalizationMode {
+  PixelMaxMin,
+  // below are for CT,
+  WindowCenter,
+  // https://radiopaedia.org/articles/windowing-ct
+  AbdomenSoftTissues, //W:400 L:50
+  SpineSoftTissues, // W:250 L:50
+  SpineBone, // W:1800 L:400
+  Brain, // W:80 L:40
+  Lungs, // W:1500 L:-600. chest
+  // AbdomenLiver, // W:150 L:30.
+  // Mediastinum, // W:350 L:50.
+  // head and neck series:
+  // Stroke W:8 L:32 or W:40 L:40 中風 head
+  // subdural W:130-300 L:50-100 腦硬膜
+  // temporal bones W:2800 L:600 顳骨
+  // soft tissues: W:350–400 L:20–60. head
+  // CTA (CT angiography) // https://www.stepwards.com/?page_id=21646 (W:600, L:170)
+}
 
-// const daikon = window.daikon;
+interface WindowItem {
+  W: number;
+  L: number;
+}
+
+interface IWindowDictionary {
+  [id: number]: WindowItem;
+}
+
+const WindowCenterWidthConst: IWindowDictionary = {
+  [NormalizationMode.AbdomenSoftTissues]: {
+    W: 400,
+    L: 50,
+  },
+  [NormalizationMode.SpineSoftTissues]: {
+    W: 250,
+    L: 50,
+  },
+  [NormalizationMode.SpineBone]: {
+    W: 1800,
+    L: 400,
+  },
+  [NormalizationMode.Brain]: {
+    W: 80,
+    L: 40,
+  },
+  [NormalizationMode.Lungs]: {
+    W: 1500,
+    L: -600,
+  },
+};
 
 const dropZoneStyle = {
   borderWidth: 2,
@@ -34,22 +77,26 @@ const dropZoneStyle = {
   // textAlign: "center",
 };
 
-const emptyFile = {
+const initialImageState = {
   frameIndexes: [],
   currFrameIndex: 0,
   multiFrameInfo: "",
-  windowCenter: "",
-  windowWidth: "",
-  max: "",
-  min: "",
-  resX: "",
-  resY: "",
+  windowCenter: 0,
+  windowWidth: -1,
+  useWindowCenter: 0,
+  useWindowWidth: -1,
+  pixelMax: 0,
+  pixelMin: 0,
+  resX: 0,
+  resY: 0,
   photometric: "",
   modality: "",
   hasDICOMExtension: true,
+  isValidMouseDown: false, // reset when switching to a new image
 };
 
 type State = {
+  currNormalizeMode: number;
   ifWindowCenterMode: boolean;
   currFilePath: string;
   currFileNo: number;
@@ -57,26 +104,62 @@ type State = {
   frameIndexes: any[];
   currFrameIndex: number;
   multiFrameInfo: string;
-  windowCenter: string;
-  windowWidth: string;
-  max: string;
-  min: string;
-  resX: string;
-  resY: string;
+  windowCenter: number;
+  windowWidth: number;
+  pixelMax: number; // pixel max
+  pixelMin: number; // pixel min
+  resX: number;
+  resY: number;
   photometric: string;
   modality: string;
   hasDICOMExtension: boolean;
+  isValidMouseDown: boolean; // switch to another image, becomes invalid
+  useWindowCenter: number;
+  useWindowWidth: number;
 };
+
+interface NormalizationProps {
+  mode: NormalizationMode;
+  windowItem?: WindowItem;
+  currNormalizeMode: NormalizationMode;
+  onChange?: (
+    e: React.FormEvent<HTMLInputElement>,
+    data: CheckboxProps
+  ) => void;
+}
+
+function NormalizationComponent(props: NormalizationProps) {
+  const { mode, windowItem, currNormalizeMode, onChange } = props;
+  const data = windowItem ?? WindowCenterWidthConst[mode] ?? null;
+  return (
+    <>
+      <Checkbox
+        radio
+        label={NormalizationMode[mode]}
+        name="checkboxRadioGroup"
+        value={mode}
+        checked={currNormalizeMode === mode}
+        onChange={onChange}
+        // checked={ifWindowCenterMode}
+        // onChange={this.handleNormalizeModeChange}
+      />
+      {data ? ` c:${data.L};w:${data.W}` : null}
+    </>
+  );
+}
 
 class App extends Component<{}, State> {
   myCanvasRef: React.RefObject<HTMLCanvasElement>;
   files: any[];
   isOnlineMode = true;
   currentImage: any;
+  clientX: number;
+  clientY: number;
 
   constructor() {
     super({});
     this.state = {
+      currNormalizeMode: NormalizationMode.WindowCenter,
       ifWindowCenterMode: true,
       currFilePath: "",
       // multiFrameInfo: '',
@@ -92,13 +175,18 @@ class App extends Component<{}, State> {
       // modality: '',
       currFileNo: 0,
       totalFiles: 0,
-      ...emptyFile,
+      ...initialImageState,
     };
     this.myCanvasRef = React.createRef();
     this.files = [];
+    this.clientX = 0;
+    this.clientY = 0;
   }
 
   componentDidMount() {
+    window.addEventListener("mouseup", this.onMouseUp);
+    // window.addEventListener("mouseup", this.onMouseUp);
+
     // get file path from current url, e.g.
     // chrome-extension://jfnlfimghfiagibfigmlopnfljpfnnje/dicom.html#file:///tmp/test.dcm
     const url = window.location.href;
@@ -121,22 +209,43 @@ class App extends Component<{}, State> {
     }
   }
 
+  // TODO:
+  // mode
+  //  max/min mode
+  //  default window center mode
+  //  其他幾種 mode by michael
+  //  [pending] reset button
+  // show 現在的 normailze 值
+  // 滑鼠滾輪左鍵 or touch pad 壓著左鍵 都先加 +=1 or -=10 好了
+  // 切到新的 image, mode 保持好了, 但 useWindowWidth 要 x reset,
+  // 切同一張圖不同的 frame 呢? mode 保持, useWindowWidth呢????? 保持好了
+  // 切不同的 mode 呢? (就不能用客制化的 useWindowWidth, 要 reset )
+
   handleNormalizeModeChange = (
     e: React.FormEvent<HTMLInputElement>,
     data: CheckboxProps
   ) => {
     const { value } = data;
-    let ifWindowCenterMode;
-    if (value === "center") {
-      ifWindowCenterMode = true;
-    } else {
-      ifWindowCenterMode = false;
-    }
-    this.setState({ ifWindowCenterMode });
+
+    // console.log("value:", typeof value, value);
+    // let ifWindowCenterMode;
+    // if (value === "center") {
+    //   ifWindowCenterMode = true;
+    // } else {
+    //   ifWindowCenterMode = false;
+    // }
+    const newMode = value as number;
+    this.setState({
+      useWindowWidth: -1,
+      useWindowCenter: 0,
+      currNormalizeMode: newMode,
+    });
+
+    // this.setState({ ifWindowCenterMode });
 
     if (this.currentImage) {
       const { currFrameIndex } = this.state;
-      this.renderFrame(this.currentImage, currFrameIndex, ifWindowCenterMode);
+      this.renderFrame(this.currentImage, currFrameIndex, newMode, -1);
     }
   };
 
@@ -144,8 +253,14 @@ class App extends Component<{}, State> {
     console.log("renderImage bytelength:", buffer.byteLength);
     if (buffer) {
       daikon.Parser.verbose = true;
-      const image = daikon.Series.parseImage(new DataView(buffer));
-      const numFrames = image.getNumberOfFrames();
+      let image;
+      let numFrames;
+      try {
+        image = daikon.Series.parseImage(new DataView(buffer));
+        numFrames = image.getNumberOfFrames();
+      } catch (e) {
+        console.log("parse dicom error:", e);
+      }
       if (numFrames > 1) {
         // console.log("frames:", numFrames);
         const multiFrameInfo = `It's multi-frame file (n=${numFrames})`;
@@ -178,7 +293,10 @@ class App extends Component<{}, State> {
   renderFrame = (
     image: any,
     frameIndex: number,
-    ifWindowCenterMode?: boolean
+    currNormalizeMode?: number,
+    useWindowWidth?: number,
+    useWindowCenter?: number
+    // ifWindowCenterMode?: boolean
   ) => {
     console.log(`switch to ${frameIndex} Frame`);
 
@@ -190,7 +308,7 @@ class App extends Component<{}, State> {
     const modality = image.getModality();
     if (photometric !== null) {
       const mode = image.getPlanarConfig();
-      console.log("Planar mode:", mode);
+      // console.log("Planar mode:", mode);
       if (photometric.trim().indexOf("RGB") !== -1) {
         ifRGB = true;
 
@@ -204,37 +322,79 @@ class App extends Component<{}, State> {
     // https://github.com/rii-mango/Daikon/issues/4
     // The new function will handle things like byte order, number of bytes per voxel, datatype, data scales, etc.
     // It returns an array of floating point values. So far this is only working for plain intensity data, not RGB.
-    const obj = image.getInterpretedData(false, true, frameIndex); // obj.data: float32array
+    let obj;
+    try {
+      // BUG: latest daikon will throw a exception when calliing getInterpretedData for palette case
+      obj = image.getInterpretedData(false, true, frameIndex); // obj.data: float32array
+    } catch (e) {
+      console.log("read dicom InterpretedData error:", e);
+      return;
+    }
     const width: number = obj.numCols;
     const height: number = obj.numRows;
-    const windowCenter = image.getWindowCenter();
-    const windowWidth = image.getWindowWidth();
+    // center/width may be null
+    const windowCenter = image.getWindowCenter() as number;
+    const windowWidth = image.getWindowWidth() as number;
+    // console.log("max:", typeof obj.max);
+    // console.log("windowCenter:", typeof windowCenter);
     this.setState({
       windowCenter,
       windowWidth,
-      max: obj.max,
-      min: obj.min,
-      resX: width.toString(),
-      resY: height.toString(),
+      pixelMax: obj.max,
+      pixelMin: obj.min,
+      resX: width,
+      resY: height,
       modality,
       photometric,
     });
 
     let max;
     let min;
-    if (ifWindowCenterMode === undefined) {
-      ({ ifWindowCenterMode } = this.state);
+    if (currNormalizeMode === undefined) {
+      ({ currNormalizeMode } = this.state);
     }
-    if (!ifWindowCenterMode) {
-      console.log("mode1");
-      ({ max, min } = obj);
-    } else if (windowCenter && windowWidth) {
-      console.log("mode2");
+    if (useWindowWidth === undefined) {
+      ({ useWindowWidth } = this.state);
+    }
+    if (useWindowCenter === undefined) {
+      ({ useWindowCenter } = this.state);
+    }
 
-      min = windowCenter - Math.floor(windowWidth / 2);
-      max = windowCenter + Math.floor(windowWidth / 2);
+    // let tmpWindowCenter;
+    // let tmpeWindowWidth;
+    // if (useWindowWidth > 0) {
+    //   tmpWindowCenter = useWindowCenter;
+    //   tmpeWindowWidth = useWindowWidth;
+    // } else if (currNormalizeMode === NormalizationMode.WindowCenter) {
+    //   if (windowCenter && windowWidth) {
+    //     tmpWindowCenter = windowCenter;
+    //     tmpeWindowWidth = windowWidth;
+    //   }
+    // } else if (currNormalizeMode === NormalizationMode.MaxMin) {
+    // } else {
+    //   const data = WindowCenterWidthConst[currNormalizeMode];
+    //   tmpWindowCenter = data.L;
+    //   tmpeWindowWidth = data.W;
+    // }
+    // if (tmpeWindowWidth && tmpWindowCenter) {
+    //   min = tmpWindowCenter - Math.floor(tmpeWindowWidth / 2);
+    //   max = tmpWindowCenter + Math.floor(tmpeWindowWidth / 2);
+    // } else {
+    //   // max/min
+    //   ({ max, min } = obj);
+    // }
+    ({ max, min } = this.getNormalizationRange(
+      useWindowWidth,
+      useWindowCenter,
+      currNormalizeMode,
+      windowWidth,
+      windowCenter,
+      obj.max,
+      obj.min
+    ));
 
-      // truncate
+    // truncate
+    if (min !== obj.min || max !== obj.max) {
       for (let i = 0; i < obj.data.length; i += 1) {
         if (obj.data[i] > max) {
           obj.data[i] = max;
@@ -242,10 +402,30 @@ class App extends Component<{}, State> {
           obj.data[i] = min;
         }
       }
-    } else {
-      console.log("no valid window center/width");
-      ({ max, min } = obj);
     }
+
+    // if (!ifWindowCenterMode) {
+    //   // MaxMin mode
+    //   console.log("mode1");
+    //   ({ max, min } = obj);
+    // } else if (windowCenter && windowWidth) {
+    //   console.log("mode2");
+
+    //   min = windowCenter - Math.floor(windowWidth / 2);
+    //   max = windowCenter + Math.floor(windowWidth / 2);
+
+    //   // truncate
+    //   for (let i = 0; i < obj.data.length; i += 1) {
+    //     if (obj.data[i] > max) {
+    //       obj.data[i] = max;
+    //     } else if (obj.data[i] < min) {
+    //       obj.data[i] = min;
+    //     }
+    //   }
+    // } else {
+    //   console.log("no valid window center/width");
+    //   ({ max, min } = obj);
+    // }
 
     // little endian type of dicom data seems to be unit16, http://rii.uthscsa.edu/mango/papaya/ shows 2 byte
     // obj.data: float32, length:262144 (if dicom image is 512x512)
@@ -379,7 +559,7 @@ class App extends Component<{}, State> {
       currFilePath: decodeURI(url),
     });
 
-    if (!this.checkDicomNameAndResetInvalid(url)) {
+    if (!this.checkDicomNameAndResetState(url)) {
       return;
     }
 
@@ -431,20 +611,22 @@ class App extends Component<{}, State> {
     }
   };
 
-  checkDicomNameAndResetInvalid(name: string) {
+  checkDicomNameAndResetState(name: string) {
+    const c2: any = this.myCanvasRef.current;
+    if (c2) {
+      console.log("reset canvas");
+      const ctx2 = c2.getContext("2d");
+      ctx2.clearRect(0, 0, c2.width, c2.height);
+    }
+
     if (
       name.toLowerCase().endsWith(".dcm") === false &&
       name.toLowerCase().endsWith(".dicom") === false
     ) {
       console.log("not dicom file");
-      const c2: any = this.myCanvasRef.current;
-      if (c2) {
-        const ctx2 = c2.getContext("2d");
-        ctx2.clearRect(0, 0, c2.width, c2.height);
-      }
 
       this.setState({
-        ...emptyFile,
+        ...initialImageState,
         hasDICOMExtension: false,
       });
 
@@ -452,7 +634,7 @@ class App extends Component<{}, State> {
     }
 
     this.setState({
-      hasDICOMExtension: true,
+      ...initialImageState,
     });
 
     return true;
@@ -464,18 +646,14 @@ class App extends Component<{}, State> {
       currFilePath: file.name,
     });
 
-    if (!this.checkDicomNameAndResetInvalid(file.name)) {
+    if (!this.checkDicomNameAndResetState(file.name)) {
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const fileContent = reader.result;
-        this.renderImage(fileContent);
-      } catch (e) {
-        console.log("parse dicom error:", e);
-      }
+      const fileContent = reader.result;
+      this.renderImage(fileContent);
     };
     reader.onabort = () => console.log("file reading was aborted");
     // e.g. "drag a folder" will fail to read
@@ -550,6 +728,149 @@ class App extends Component<{}, State> {
     this.switchImage(newFileNo);
   };
 
+  onMouseCanvasDown = (event: any) => {
+    console.log("onMouseDown:", event);
+    this.setState({
+      isValidMouseDown: true,
+    });
+
+    this.clientX = event.clientX;
+    this.clientY = event.clientY;
+
+    // register mouse move event
+    window.addEventListener("mousemove", this.onMouseMove);
+  };
+
+  onMouseUp = (event: any) => {
+    console.log("onMouseUp:", event);
+    this.setState({
+      isValidMouseDown: false,
+    });
+
+    // unregister mouse move event
+    window.removeEventListener("mousemove", this.onMouseMove);
+  };
+
+  // TODO: add throttle-debounce
+  onMouseMove = (event: any) => {
+    // console.log("onMousemove:", event);
+    // const { clientX, scrollLeft, scrollTop, clientY } = this.state;
+    // this._scroller.scrollLeft = scrollLeft - clientX + event.clientX;
+    // this._scroller.scrollTop = scrollTop - clientY + event.clientY;
+    const {
+      isValidMouseDown,
+      windowCenter,
+      windowWidth,
+      pixelMax,
+      pixelMin,
+      useWindowWidth,
+      useWindowCenter,
+      currFrameIndex,
+      currNormalizeMode,
+    } = this.state;
+    if (isValidMouseDown) {
+      const {
+        max,
+        min,
+        tmpWindowCenter,
+        tmpWindowWidth,
+      } = this.getNormalizationRange(
+        useWindowWidth,
+        useWindowCenter,
+        currNormalizeMode,
+        windowWidth,
+        windowCenter,
+        pixelMax,
+        pixelMin
+      );
+
+      if (tmpWindowCenter !== undefined && tmpWindowWidth !== undefined) {
+        const deltaX = event.clientX - this.clientX;
+        const deltaY = this.clientY - event.clientY;
+        // console.log("deltaY:", deltaY);
+
+        let newWindowWidth = tmpWindowWidth + deltaX;
+        if (newWindowWidth < 0) {
+          // console.log("newWindowWidth minus:", newWindowWidth);
+          newWindowWidth = 0;
+        }
+        // console.log("newWindowWidth:", newWindowWidth);
+        const newWindowCenter = tmpWindowCenter + deltaY;
+        this.setState({
+          useWindowCenter: newWindowCenter,
+          useWindowWidth: newWindowWidth,
+        });
+        this.renderFrame(
+          this.currentImage,
+          currFrameIndex,
+          currNormalizeMode,
+          newWindowWidth,
+          newWindowCenter
+          // useWindowCenter //useWindowCenter
+        );
+      }
+
+      // max/min mode
+      // default window center mode
+    }
+    this.clientX = event.clientX;
+    this.clientY = event.clientY;
+  };
+
+  getNormalizationRange(
+    useWindowWidth: number,
+    useWindowCenter: number,
+    currNormalizeMode: number,
+    windowWidth: number,
+    windowCenter: number,
+    pixelMax: number,
+    pixelMin: number
+  ) {
+    let max;
+    let min;
+    let tmpWindowCenter;
+    let tmpWindowWidth;
+    // console.log(
+    //   "a:",
+    //   useWindowWidth, // -1
+    //   useWindowCenter, // 0
+    //   windowWidth, // null
+    //   windowCenter // null
+    // );
+    if (useWindowWidth >= 0 && useWindowCenter !== undefined) {
+      tmpWindowCenter = useWindowCenter;
+      tmpWindowWidth = useWindowWidth;
+    } else if (currNormalizeMode === NormalizationMode.WindowCenter) {
+      if (windowWidth !== null && windowWidth >= 0 && windowCenter !== null) {
+        tmpWindowCenter = windowCenter;
+        tmpWindowWidth = windowWidth;
+      }
+    } else if (currNormalizeMode === NormalizationMode.PixelMaxMin) {
+    } else {
+      const data = WindowCenterWidthConst[currNormalizeMode];
+      tmpWindowCenter = data.L;
+      tmpWindowWidth = data.W;
+    }
+    if (tmpWindowWidth !== undefined && tmpWindowCenter !== undefined) {
+      min = tmpWindowCenter - Math.floor(tmpWindowWidth / 2);
+      max = tmpWindowCenter + Math.floor(tmpWindowWidth / 2);
+    } else {
+      // max/min
+      max = pixelMax;
+      min = pixelMin;
+      // ({ max, min } = obj);
+    }
+
+    // console.log("t:", max, min, pixelMax, pixelMin);
+
+    return {
+      max,
+      min,
+      tmpWindowCenter,
+      tmpWindowWidth,
+    };
+  }
+
   render() {
     const {
       currFilePath,
@@ -557,10 +878,11 @@ class App extends Component<{}, State> {
       frameIndexes,
       currFrameIndex,
       ifWindowCenterMode,
+      currNormalizeMode,
       windowCenter,
       windowWidth,
-      max,
-      min,
+      pixelMax,
+      pixelMin,
       resX,
       resY,
       photometric,
@@ -568,6 +890,8 @@ class App extends Component<{}, State> {
       currFileNo,
       totalFiles,
       hasDICOMExtension,
+      useWindowWidth,
+      useWindowCenter,
     } = this.state;
     let info = "[meta]";
     info += ` modality:${modality};photometric:${photometric}`;
@@ -577,6 +901,22 @@ class App extends Component<{}, State> {
     if (multiFrameInfo) {
       info += `; ${multiFrameInfo}`;
     }
+
+    const {
+      max,
+      min,
+      tmpWindowCenter,
+      tmpWindowWidth,
+    } = this.getNormalizationRange(
+      useWindowWidth,
+      useWindowCenter,
+      currNormalizeMode,
+      windowWidth,
+      windowCenter,
+      pixelMax,
+      pixelMin
+    );
+
     return (
       <Hotkeys
         allowRepeat
@@ -637,30 +977,63 @@ class App extends Component<{}, State> {
                 }}
               >
                 <div>
-                  <Form>
-                    <Form.Field>
-                      <Checkbox
-                        radio
-                        label="Window Center Mode"
-                        name="checkboxRadioGroup"
-                        value="center"
-                        checked={ifWindowCenterMode}
-                        onChange={this.handleNormalizeModeChange}
-                      />
-                      {` c:${windowCenter};w:${windowWidth}`}
-                    </Form.Field>
-                    <Form.Field>
-                      <Checkbox
-                        radio
-                        label="Max/Min Mode"
-                        name="checkboxRadioGroup"
-                        value="max"
-                        checked={!ifWindowCenterMode}
-                        onChange={this.handleNormalizeModeChange}
-                      />
-                      {` max:${max};min:${min}`}
-                    </Form.Field>
-                  </Form>
+                  <div className="flex-container">
+                    {`pixel max:${pixelMax};min:${pixelMin}; useWindowCenter:${
+                      tmpWindowCenter ?? ""
+                    };useWindowWidth:${
+                      tmpWindowWidth ?? ""
+                    }; Normalization mode:`}
+                    <br></br>
+                    {`(WindowCenter mode will fallback to PixelMaxMin if no value):`}
+                  </div>
+                  <div>
+                    <NormalizationComponent
+                      mode={NormalizationMode.WindowCenter}
+                      windowItem={
+                        windowWidth >= 0
+                          ? { L: windowCenter, W: windowWidth }
+                          : undefined
+                      }
+                      currNormalizeMode={currNormalizeMode}
+                      onChange={this.handleNormalizeModeChange}
+                    />
+                    <NormalizationComponent
+                      mode={NormalizationMode.PixelMaxMin}
+                      currNormalizeMode={currNormalizeMode}
+                      onChange={this.handleNormalizeModeChange}
+                    />
+                  </div>
+                  <div>
+                    <NormalizationComponent
+                      mode={NormalizationMode.AbdomenSoftTissues}
+                      currNormalizeMode={currNormalizeMode}
+                      onChange={this.handleNormalizeModeChange}
+                    />
+
+                    <NormalizationComponent
+                      mode={NormalizationMode.SpineSoftTissues}
+                      currNormalizeMode={currNormalizeMode}
+                      onChange={this.handleNormalizeModeChange}
+                    />
+
+                    <NormalizationComponent
+                      mode={NormalizationMode.SpineBone}
+                      currNormalizeMode={currNormalizeMode}
+                      onChange={this.handleNormalizeModeChange}
+                    />
+                  </div>
+                  <div>
+                    <NormalizationComponent
+                      mode={NormalizationMode.Brain}
+                      currNormalizeMode={currNormalizeMode}
+                      onChange={this.handleNormalizeModeChange}
+                    />
+                    <NormalizationComponent
+                      mode={NormalizationMode.Lungs}
+                      currNormalizeMode={currNormalizeMode}
+                      onChange={this.handleNormalizeModeChange}
+                    />
+                  </div>
                 </div>
                 <div
                   style={{
@@ -713,12 +1086,21 @@ class App extends Component<{}, State> {
             ) : null}
             {hasDICOMExtension ? (
               <div
+                // onMouseDown={this.onMouseDown0}
+                // onScroll={this.onMouseMove0}
                 style={{
                   display: "flex",
                   justifyContent: "center",
                 }}
               >
-                <canvas ref={this.myCanvasRef} width={128} height={128} />
+                <canvas
+                  onMouseDown={this.onMouseCanvasDown}
+                  // onMouseUp={this.onMouseUp0}
+                  // onScroll={this.onMouseMove}
+                  ref={this.myCanvasRef}
+                  width={128}
+                  height={128}
+                />
               </div>
             ) : null}
           </div>
