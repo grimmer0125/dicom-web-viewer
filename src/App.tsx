@@ -46,6 +46,7 @@ const emptyFile = {
   resY: "",
   photometric: "",
   modality: "",
+  hasDICOMExtension: true,
 };
 
 type State = {
@@ -64,6 +65,7 @@ type State = {
   resY: string;
   photometric: string;
   modality: string;
+  hasDICOMExtension: boolean;
 };
 
 class App extends Component<{}, State> {
@@ -176,6 +178,8 @@ class App extends Component<{}, State> {
 
     let ifRGB = false;
     let rgbMode = 0; // 0: rgbrgb... 1: rrrgggbbb
+    // BUG:
+    // fetchFile (file://) case will need longer time to getPhotometricInterpretation after using a while
     const photometric = image.getPhotometricInterpretation();
     const modality = image.getModality();
     if (photometric !== null) {
@@ -407,6 +411,8 @@ class App extends Component<{}, State> {
     });
 
     const newFile = this.files[value - 1];
+    console.log("switch to image:", value, newFile);
+
     if (!this.isOnlineMode) {
       this.loadFile(newFile);
     } else {
@@ -421,14 +427,22 @@ class App extends Component<{}, State> {
     ) {
       console.log("not dicom file");
       const c2: any = this.myCanvasRef.current;
-      const ctx2 = c2.getContext("2d");
-      ctx2.clearRect(0, 0, c2.width, c2.height);
+      if (c2) {
+        const ctx2 = c2.getContext("2d");
+        ctx2.clearRect(0, 0, c2.width, c2.height);
+      }
+
       this.setState({
         ...emptyFile,
+        hasDICOMExtension: false,
       });
 
       return false;
     }
+
+    this.setState({
+      hasDICOMExtension: true,
+    });
 
     return true;
   }
@@ -542,6 +556,7 @@ class App extends Component<{}, State> {
       modality,
       currFileNo,
       totalFiles,
+      hasDICOMExtension,
     } = this.state;
     let info = "[meta]";
     info += ` modality:${modality};photometric:${photometric}`;
@@ -685,14 +700,16 @@ class App extends Component<{}, State> {
                 </div>
               </div>
             ) : null}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "center",
-              }}
-            >
-              <canvas ref={this.myCanvasRef} width={128} height={128} />
-            </div>{" "}
+            {hasDICOMExtension ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                }}
+              >
+                <canvas ref={this.myCanvasRef} width={128} height={128} />
+              </div>
+            ) : null}
           </div>
         </div>
       </Hotkeys>
