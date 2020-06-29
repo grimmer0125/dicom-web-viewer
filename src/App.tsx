@@ -217,7 +217,7 @@ class App extends Component<{}, State> {
   //  [pending] reset button
   // show 現在的 normailze 值
   // 滑鼠滾輪左鍵 or touch pad 壓著左鍵 都先加 +=1 or -=10 好了
-  // 切到新的 image, mode 保持好了, 但 useWindowWidth 要 x reset,
+  // 切到新的 image, mode 保持好了, useWindowWidth 會 reset,
   // 切同一張圖不同的 frame 呢? mode 保持, useWindowWidth呢????? 保持好了
   // 切不同的 mode 呢? (就不能用客制化的 useWindowWidth, 要 reset )
 
@@ -785,14 +785,18 @@ class App extends Component<{}, State> {
       );
 
       if (tmpWindowCenter !== undefined && tmpWindowWidth !== undefined) {
-        const deltaX = event.clientX - this.clientX;
+        let deltaX = event.clientX - this.clientX;
         const deltaY = this.clientY - event.clientY;
         // console.log("deltaY:", deltaY);
 
         let newWindowWidth = tmpWindowWidth + deltaX;
-        if (newWindowWidth < 0) {
+        if (newWindowWidth <= 1) {
           // console.log("newWindowWidth minus:", newWindowWidth);
-          newWindowWidth = 0;
+          newWindowWidth = 2;
+          deltaX = newWindowWidth - tmpWindowWidth;
+        }
+        if (deltaX === 0 && deltaY === 0) {
+          return;
         }
         // console.log("newWindowWidth:", newWindowWidth);
         const newWindowCenter = tmpWindowCenter + deltaY;
