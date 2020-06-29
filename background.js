@@ -1,3 +1,16 @@
+//extensions/shortcuts
+chrome: chrome.commands.onCommand.addListener(function (command) {
+  chrome.tabs.create({
+    url: "index.html",
+  });
+});
+
+chrome.browserAction.onClicked.addListener(() => {
+  chrome.tabs.create({
+    url: "index.html",
+  });
+});
+
 chrome.webRequest.onBeforeRequest.addListener(
   (info) => {
     const url = info.url.toLowerCase();
