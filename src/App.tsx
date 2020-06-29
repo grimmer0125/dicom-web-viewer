@@ -16,7 +16,7 @@ import * as daikon from "daikon";
 const { fromEvent } = require("file-selector");
 
 enum NormalizationMode {
-  PixelMaxMin,
+  PixelHUMaxMin,
   // below are for CT,
   WindowCenter,
   // https://radiopaedia.org/articles/windowing-ct
@@ -845,7 +845,7 @@ class App extends Component<{}, State> {
         tmpWindowCenter = windowCenter;
         tmpWindowWidth = windowWidth;
       }
-    } else if (currNormalizeMode === NormalizationMode.PixelMaxMin) {
+    } else if (currNormalizeMode === NormalizationMode.PixelHUMaxMin) {
     } else {
       const data = WindowCenterWidthConst[currNormalizeMode];
       tmpWindowCenter = data.L;
@@ -978,13 +978,13 @@ class App extends Component<{}, State> {
               >
                 <div>
                   <div className="flex-container">
-                    {`pixel max:${pixelMax};min:${pixelMin}; useWindowCenter:${
+                    {`pixel/HU max:${pixelMax};min:${pixelMin}; useWindowCenter:${
                       tmpWindowCenter ?? ""
                     };useWindowWidth:${
                       tmpWindowWidth ?? ""
                     }; Normalization mode:`}
                     <br></br>
-                    {`(WindowCenter mode will fallback to PixelMaxMin if no value):`}
+                    {`(WindowCenter mode will fallback to Pixel/HU MaxMin if no value):`}
                   </div>
                   <div>
                     <NormalizationComponent
@@ -998,7 +998,7 @@ class App extends Component<{}, State> {
                       onChange={this.handleNormalizeModeChange}
                     />
                     <NormalizationComponent
-                      mode={NormalizationMode.PixelMaxMin}
+                      mode={NormalizationMode.PixelHUMaxMin}
                       currNormalizeMode={currNormalizeMode}
                       onChange={this.handleNormalizeModeChange}
                     />
