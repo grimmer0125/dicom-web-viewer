@@ -143,7 +143,7 @@ function NormalizationComponent(props: NormalizationProps) {
         // checked={ifWindowCenterMode}
         // onChange={this.handleNormalizeModeChange}
       />
-      {data ? ` c:${data.L};w:${data.W}` : null}
+      {data ? ` c:${data.L}, w:${data.W}  ` : `  `}
     </>
   );
 }
@@ -252,7 +252,7 @@ class App extends Component<{}, State> {
   renderImage = (buffer: any) => {
     console.log("renderImage bytelength:", buffer.byteLength);
     if (buffer) {
-      daikon.Parser.verbose = true;
+      // daikon.Parser.verbose = true;
       let image;
       let numFrames;
       try {
@@ -307,7 +307,7 @@ class App extends Component<{}, State> {
     const photometric = image.getPhotometricInterpretation();
     const modality = image.getModality();
     if (photometric !== null) {
-      const mode = image.getPlanarConfig();
+      // const mode = image.getPlanarConfig();
       // console.log("Planar mode:", mode);
       if (photometric.trim().indexOf("RGB") !== -1) {
         ifRGB = true;
@@ -933,8 +933,12 @@ class App extends Component<{}, State> {
             <div className="flex-container">
               <div>
                 DICOM Image Viewer (feat: 1. click DICOM url 2. click extension
-                icon to open viewer page to load files/folder 3. drag any DICOM
-                file into Chrome without opening viewer first
+                icon (or ctrl+u/cmd+u) to open <br></br>viewer page 3. drag any
+                DICOM file into Chrome without opening viewer first 4.
+                <a href="https://github.com/grimmer0125/dicom-web-viewer/wiki">
+                  {" "}
+                  More (e.g. CLI and Instruction)!
+                </a>
               </div>
             </div>
             <div>
@@ -960,7 +964,9 @@ class App extends Component<{}, State> {
                         Try dropping DICOM image files/folder here, <br />
                         or click here to select files to view. <br />
                         You need to enable file url access in extenstion DETAILS
-                        setting page.
+                        setting page. <br /> Use right/left key to switch &
+                        mouse press+move to change window center (level) <br />
+                        and widow width
                       </p>
                     </div>
                   </div>
@@ -982,9 +988,9 @@ class App extends Component<{}, State> {
               >
                 <div>
                   <div className="flex-container">
-                    {`pixel/HU max:${pixelMax};min:${pixelMin}; useWindowCenter:${
+                    {`pixel/HU max:${pixelMax}, min:${pixelMin}; useWindowCenter:${
                       tmpWindowCenter ?? ""
-                    };useWindowWidth:${
+                    }, useWindowWidth:${
                       tmpWindowWidth ?? ""
                     }; Normalization mode:`}
                     <br></br>
@@ -1060,7 +1066,7 @@ class App extends Component<{}, State> {
                 </div>{" "}
               </div>
             </div>
-            <div
+            {/* <div
               style={{
                 display: "flex",
                 justifyContent: "center",
@@ -1068,7 +1074,7 @@ class App extends Component<{}, State> {
             >
               {" "}
               {currFilePath || null}{" "}
-            </div>{" "}
+            </div> */}
             {totalFiles > 0 ? (
               <div
                 style={{
@@ -1077,7 +1083,14 @@ class App extends Component<{}, State> {
                 }}
               >
                 <div style={{ width: 600 }}>
-                  {`[support right/left key] total:${totalFiles},current:${currFileNo}`}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                    }}
+                  >
+                    {`${currFilePath}. ${currFileNo}/${totalFiles}`}
+                  </div>
                   <Slider
                     value={currFileNo}
                     step={1}
