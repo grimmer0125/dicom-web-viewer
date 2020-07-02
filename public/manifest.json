@@ -8,9 +8,9 @@
     "scripts": ["background.js"]
   },
   "icons": {
-    "16": "icon16.png",
-    "48": "icon48.png",
-    "128": "icon128.png"
+    "16": "Dicom_16.png",
+    "48": "Dicom_48.png",
+    "128": "Dicom_128.png"
   },
   "browser_action": {
     "default_title": "DICOM image viewer (just open url or local file which needs enable local file access!)"
