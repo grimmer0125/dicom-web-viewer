@@ -12,8 +12,11 @@ import {
 import Dropzone from "react-dropzone";
 import Hotkeys from "react-hot-keys";
 import * as daikon from "daikon";
+import { fetchDicomAsync, loadDicomAsync } from "./utility";
 
 const { fromEvent } = require("file-selector");
+
+// import { fromEvent } from "file-selector";
 
 enum NormalizationMode {
   PixelHUMaxMin,
@@ -492,11 +495,13 @@ class App extends Component<{}, State> {
       totalFiles: this.files.length,
       currFileNo: 1,
     });
-
     this.fetchFile(this.files[0]);
+    const { ifShowSagittalCorona } = this.state;
+    if (ifShowSagittalCorona) {
+    }
   }
 
-  fetchFile = (url: string) => {
+  fetchFile = async (url: string) => {
     this.setState({
       currFilePath: decodeURI(url),
     });
@@ -505,37 +510,40 @@ class App extends Component<{}, State> {
       return;
     }
 
-    if (url.indexOf("file://") === 0) {
-      const xhr = new XMLHttpRequest();
-      xhr.open("GET", url, true);
-      xhr.responseType = "arraybuffer";
-      xhr.onload = () => {
-        const arrayBuffer = xhr.response;
-        this.renderImage(arrayBuffer);
-      };
-      xhr.send();
-    } else {
-      // NOTE: copy from https://github.com/my-codeworks/tiff-viewer-extension/blob/master/background.js#L29
-      // TODO: figure it out why using arraybuffer will fail
-      console.log("Starting XHR request for", url);
-      const request = new XMLHttpRequest();
-      request.open("GET", url, false);
-      request.overrideMimeType("text/plain; charset=x-user-defined");
-      request.send();
-      console.log("Finished XHR request");
-      const data = request.responseText;
-      let buffer;
-      let view: DataView;
-      let a_byte;
-      buffer = new ArrayBuffer(data.length);
-      view = new DataView(buffer);
-      data.split("").forEach((c, i) => {
-        a_byte = c.charCodeAt(0);
-        view.setUint8(i, a_byte & 0xff);
-      });
-      const buffer2 = view.buffer;
-      this.renderImage(buffer2);
-    }
+    const buffer = await fetchDicomAsync(url);
+    this.renderImage(buffer);
+
+    // if (url.indexOf("file://") === 0) {
+    //   const xhr = new XMLHttpRequest();
+    //   xhr.open("GET", url, true);
+    //   xhr.responseType = "arraybuffer";
+    //   xhr.onload = () => {
+    //     const arrayBuffer = xhr.response;
+    //     this.renderImage(arrayBuffer);
+    //   };
+    //   xhr.send();
+    // } else {
+    //   // NOTE: copy from https://github.com/my-codeworks/tiff-viewer-extension/blob/master/background.js#L29
+    //   // TODO: figure it out why using arraybuffer will fail
+    //   console.log("Starting XHR request for", url);
+    //   const request = new XMLHttpRequest();
+    //   request.open("GET", url, false);
+    //   request.overrideMimeType("text/plain; charset=x-user-defined");
+    //   request.send();
+    //   console.log("Finished XHR request");
+    //   const data = request.responseText;
+    //   let buffer;
+    //   let view: DataView;
+    //   let a_byte;
+    //   buffer = new ArrayBuffer(data.length);
+    //   view = new DataView(buffer);
+    //   data.split("").forEach((c, i) => {
+    //     a_byte = c.charCodeAt(0);
+    //     view.setUint8(i, a_byte & 0xff);
+    //   });
+    //   const buffer2 = view.buffer;
+    //   this.renderImage(buffer2);
+    // }
   };
 
   switchImage = (value: number) => {
@@ -583,7 +591,7 @@ class App extends Component<{}, State> {
   }
 
   /* eslint-disable */
-  loadFile(file: any) {
+  async loadFile(file: any) {
     this.setState({
       currFilePath: file.name,
     });
@@ -592,15 +600,18 @@ class App extends Component<{}, State> {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const fileContent = reader.result;
-      this.renderImage(fileContent);
-    };
-    reader.onabort = () => console.log("file reading was aborted");
-    // e.g. "drag a folder" will fail to read
-    reader.onerror = () => console.log("file reading has failed");
-    reader.readAsArrayBuffer(file);
+    const buffer = await loadDicomAsync(file);
+    this.renderImage(buffer);
+
+    // const reader = new FileReader();
+    // reader.onload = () => {
+    //   const fileContent = reader.result;
+    //   this.renderImage(fileContent);
+    // };
+    // reader.onabort = () => console.log("file reading was aborted");
+    // // e.g. "drag a folder" will fail to read
+    // reader.onerror = () => console.log("file reading has failed");
+    // reader.readAsArrayBuffer(file);
   }
 
   onDropFiles = (acceptedFiles: any[]) => {
@@ -615,6 +626,9 @@ class App extends Component<{}, State> {
         currFileNo: 1,
       });
       this.loadFile(this.files[0]);
+      const { ifShowSagittalCorona } = this.state;
+      if (ifShowSagittalCorona) {
+      }
     }
   };
 
@@ -1062,6 +1076,28 @@ class App extends Component<{}, State> {
                   height={128}
                   style={{ backgroundColor: "purple" }}
                 />
+                {ifShowSagittalCorona ? (
+                  <>
+                    <canvas
+                      // onMouseDown={this.onMouseCanvasDown}
+                      // onMouseUp={this.onMouseUp0}
+                      // onScroll={this.onMouseMove}
+                      // ref={this.myCanvasRef}
+                      width={500}
+                      height={500}
+                      style={{ backgroundColor: "yellow" }}
+                    />
+                    <canvas
+                      // onMouseDown={this.onMouseCanvasDown}
+                      // onMouseUp={this.onMouseUp0}
+                      // onScroll={this.onMouseMove}
+                      // ref={this.myCanvasRef}
+                      width={500}
+                      height={500}
+                      style={{ backgroundColor: "green" }}
+                    />
+                  </>
+                ) : null}
               </div>
             ) : null}
           </div>
