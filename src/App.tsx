@@ -116,6 +116,7 @@ type State = {
   isValidMouseDown: boolean; // switch to another image, becomes invalid
   useWindowCenter: number;
   useWindowWidth: number;
+  ifShowSagittalCorona: boolean;
 };
 
 interface NormalizationProps {
@@ -153,6 +154,7 @@ class App extends Component<{}, State> {
   files: any[];
   isOnlineMode = true;
   currentImage: any;
+  currentSeries: any;
   clientX: number;
   clientY: number;
 
@@ -162,6 +164,7 @@ class App extends Component<{}, State> {
       currNormalizeMode: NormalizationMode.WindowCenter,
       ifWindowCenterMode: true,
       currFilePath: "",
+      ifShowSagittalCorona: true,
       // multiFrameInfo: '',
       // currFrameIndex: 0,
       // frameIndexes: [],
@@ -210,13 +213,6 @@ class App extends Component<{}, State> {
   }
 
   // TODO:
-  // mode
-  //  max/min mode
-  //  default window center mode
-  //  其他幾種 mode by michael
-  //  [pending] reset button
-  // show 現在的 normailze 值
-  // 滑鼠滾輪左鍵 or touch pad 壓著左鍵 都先加 +=1 or -=10 好了
   // 切到新的 image, mode 保持好了, useWindowWidth 會 reset,
   // 切同一張圖不同的 frame 呢? mode 保持, useWindowWidth呢????? 保持好了
   // 切不同的 mode 呢? (就不能用客制化的 useWindowWidth, 要 reset )
@@ -300,6 +296,20 @@ class App extends Component<{}, State> {
   ) => {
     console.log(`switch to ${frameIndex} Frame`);
 
+    const seriesID = image.getSeriesId();
+    const a1 = image.getImageDirections(); // [100010]
+    const a2 = image.getImagePosition(); //[-155, -170, -189.75]
+    const a3 = image.getSeriesNumber(); //5
+    const a4 = image.getPixelSpacing(); //[0.66, 0.66] mm
+    const a5 = image.getSliceThickness(); //5 mm
+    const a6 = image.getAcquiredSliceDirection(); //2
+    // daikon.Image.SLICE_DIRECTION_UNKNOWN = -1;
+    // daikon.Image.SLICE_DIRECTION_AXIAL = 2;
+    // daikon.Image.SLICE_DIRECTION_CORONAL = 1;
+    // daikon.Image.SLICE_DIRECTION_SAGITTAL = 0;
+    // daikon.Image.SLICE_DIRECTION_OBLIQUE = 3;
+    const a7 = image.getSliceLocation(); //-189.75
+
     let ifRGB = false;
     let rgbMode = 0; // 0: rgbrgb... 1: rrrgggbbb
     // BUG:
@@ -360,29 +370,6 @@ class App extends Component<{}, State> {
       ({ useWindowCenter } = this.state);
     }
 
-    // let tmpWindowCenter;
-    // let tmpeWindowWidth;
-    // if (useWindowWidth > 0) {
-    //   tmpWindowCenter = useWindowCenter;
-    //   tmpeWindowWidth = useWindowWidth;
-    // } else if (currNormalizeMode === NormalizationMode.WindowCenter) {
-    //   if (windowCenter && windowWidth) {
-    //     tmpWindowCenter = windowCenter;
-    //     tmpeWindowWidth = windowWidth;
-    //   }
-    // } else if (currNormalizeMode === NormalizationMode.MaxMin) {
-    // } else {
-    //   const data = WindowCenterWidthConst[currNormalizeMode];
-    //   tmpWindowCenter = data.L;
-    //   tmpeWindowWidth = data.W;
-    // }
-    // if (tmpeWindowWidth && tmpWindowCenter) {
-    //   min = tmpWindowCenter - Math.floor(tmpeWindowWidth / 2);
-    //   max = tmpWindowCenter + Math.floor(tmpeWindowWidth / 2);
-    // } else {
-    //   // max/min
-    //   ({ max, min } = obj);
-    // }
     ({ max, min } = this.getNormalizationRange(
       useWindowWidth,
       useWindowCenter,
@@ -403,51 +390,6 @@ class App extends Component<{}, State> {
         }
       }
     }
-
-    // if (!ifWindowCenterMode) {
-    //   // MaxMin mode
-    //   console.log("mode1");
-    //   ({ max, min } = obj);
-    // } else if (windowCenter && windowWidth) {
-    //   console.log("mode2");
-
-    //   min = windowCenter - Math.floor(windowWidth / 2);
-    //   max = windowCenter + Math.floor(windowWidth / 2);
-
-    //   // truncate
-    //   for (let i = 0; i < obj.data.length; i += 1) {
-    //     if (obj.data[i] > max) {
-    //       obj.data[i] = max;
-    //     } else if (obj.data[i] < min) {
-    //       obj.data[i] = min;
-    //     }
-    //   }
-    // } else {
-    //   console.log("no valid window center/width");
-    //   ({ max, min } = obj);
-    // }
-
-    // little endian type of dicom data seems to be unit16, http://rii.uthscsa.edu/mango/papaya/ shows 2 byte
-    // obj.data: float32, length:262144 (if dicom image is 512x512)
-    // NOTE: 32bit -> 8 bit (use min/max to normalize to 0~255 from -1000~1000）
-    // let max = null;
-    // let min = null;
-    // for (let i = 0; i < obj.data.length; i += 1) {
-    //   const pixel = obj.data[i];
-    //   if (!max || pixel > max) {
-    //     max = pixel;
-    //   }
-    // }
-    // for (let i = 0; i < obj.data.length; i += 1) {
-    //   // Set outside-of-scan pixels (-2000) to -1024 (air HU)
-    //   // Workaround hard code fix, intercept may not be always -1024
-    //   // TODO: improve it later
-    //   const pixel = obj.data[i] !== -3024 ? obj.data[i] : -1024;
-    //   // const pixel = obj.data[i];
-    //   if (!min || pixel < min) {
-    //     min = pixel;
-    //   }
-    // }
 
     if (!this.myCanvasRef.current) {
       console.log("this.myCanvasRef is not ready, return");
@@ -661,7 +603,7 @@ class App extends Component<{}, State> {
     reader.readAsArrayBuffer(file);
   }
 
-  onDropFile = (acceptedFiles: any[]) => {
+  onDropFiles = (acceptedFiles: any[]) => {
     if (acceptedFiles.length > 0) {
       acceptedFiles.sort((a, b) => {
         return a.name.localeCompare(b.name);
@@ -896,6 +838,7 @@ class App extends Component<{}, State> {
       hasDICOMExtension,
       useWindowWidth,
       useWindowCenter,
+      ifShowSagittalCorona,
     } = this.state;
     let info = "[meta]";
     info += ` modality:${modality};photometric:${photometric}`;
@@ -947,7 +890,7 @@ class App extends Component<{}, State> {
                   preventDropOnDocument={false}
                   style={dropZoneStyle}
                   getDataTransferItems={(evt) => fromEvent(evt)}
-                  onDrop={this.onDropFile}
+                  onDrop={this.onDropFiles}
                 >
                   <div
                     style={{
@@ -1117,6 +1060,7 @@ class App extends Component<{}, State> {
                   ref={this.myCanvasRef}
                   width={128}
                   height={128}
+                  style={{ backgroundColor: "purple" }}
                 />
               </div>
             ) : null}
