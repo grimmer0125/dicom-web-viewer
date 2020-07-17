@@ -86,8 +86,6 @@ const initialImageState = {
   multiFrameInfo: "",
   windowCenter: 0,
   windowWidth: -1,
-  useWindowCenter: 0,
-  useWindowWidth: -1,
   pixelMax: 0,
   pixelMin: 0,
   resX: 0,
@@ -167,7 +165,9 @@ class App extends Component<{}, State> {
       currNormalizeMode: NormalizationMode.WindowCenter,
       ifWindowCenterMode: true,
       currFilePath: "",
-      ifShowSagittalCorona: true,
+      ifShowSagittalCorona: false,
+      useWindowCenter: 0,
+      useWindowWidth: -1,
       // multiFrameInfo: '',
       // currFrameIndex: 0,
       // frameIndexes: [],
@@ -465,7 +465,7 @@ class App extends Component<{}, State> {
     // console.log("fill data to ctx's imagedata done, then draw our imagedata onto the canvas")
     ctx.putImageData(imgData, 0, 0);
 
-    const scale = this.resizeTotFit(width, height);
+    let scale = this.resizeTotFit(width, height);
     if (scale !== 1) {
       console.log("scale:", scale);
     }
@@ -473,13 +473,10 @@ class App extends Component<{}, State> {
     c2.width = width / scale;
     c2.height = height / scale;
     const ctx2 = c2.getContext("2d");
-    // ctx2.scale(1 / scale, 1 / scale); is equal to ctx2.drawImage(c, 0, 0)
     ctx2.drawImage(c, 0, 0, c2.width, c2.height);
   };
 
   onOpenFileURLs(fileURLStr: string) {
-    // const filePath = paths[1];
-    // file:///fjdas;fjsajfajsk;lf
     const files = fileURLStr.split("file://");
     files.sort((a, b) => {
       return a.localeCompare(b);
@@ -495,9 +492,10 @@ class App extends Component<{}, State> {
       totalFiles: this.files.length,
       currFileNo: 1,
     });
-    this.fetchFile(this.files[0]);
     const { ifShowSagittalCorona } = this.state;
     if (ifShowSagittalCorona) {
+    } else {
+      this.fetchFile(this.files[0]);
     }
   }
 
@@ -512,38 +510,6 @@ class App extends Component<{}, State> {
 
     const buffer = await fetchDicomAsync(url);
     this.renderImage(buffer);
-
-    // if (url.indexOf("file://") === 0) {
-    //   const xhr = new XMLHttpRequest();
-    //   xhr.open("GET", url, true);
-    //   xhr.responseType = "arraybuffer";
-    //   xhr.onload = () => {
-    //     const arrayBuffer = xhr.response;
-    //     this.renderImage(arrayBuffer);
-    //   };
-    //   xhr.send();
-    // } else {
-    //   // NOTE: copy from https://github.com/my-codeworks/tiff-viewer-extension/blob/master/background.js#L29
-    //   // TODO: figure it out why using arraybuffer will fail
-    //   console.log("Starting XHR request for", url);
-    //   const request = new XMLHttpRequest();
-    //   request.open("GET", url, false);
-    //   request.overrideMimeType("text/plain; charset=x-user-defined");
-    //   request.send();
-    //   console.log("Finished XHR request");
-    //   const data = request.responseText;
-    //   let buffer;
-    //   let view: DataView;
-    //   let a_byte;
-    //   buffer = new ArrayBuffer(data.length);
-    //   view = new DataView(buffer);
-    //   data.split("").forEach((c, i) => {
-    //     a_byte = c.charCodeAt(0);
-    //     view.setUint8(i, a_byte & 0xff);
-    //   });
-    //   const buffer2 = view.buffer;
-    //   this.renderImage(buffer2);
-    // }
   };
 
   switchImage = (value: number) => {
@@ -602,19 +568,9 @@ class App extends Component<{}, State> {
 
     const buffer = await loadDicomAsync(file);
     this.renderImage(buffer);
-
-    // const reader = new FileReader();
-    // reader.onload = () => {
-    //   const fileContent = reader.result;
-    //   this.renderImage(fileContent);
-    // };
-    // reader.onabort = () => console.log("file reading was aborted");
-    // // e.g. "drag a folder" will fail to read
-    // reader.onerror = () => console.log("file reading has failed");
-    // reader.readAsArrayBuffer(file);
   }
 
-  onDropFiles = (acceptedFiles: any[]) => {
+  onDropFiles = async (acceptedFiles: any[]) => {
     if (acceptedFiles.length > 0) {
       acceptedFiles.sort((a, b) => {
         return a.name.localeCompare(b.name);
@@ -628,6 +584,65 @@ class App extends Component<{}, State> {
       this.loadFile(this.files[0]);
       const { ifShowSagittalCorona } = this.state;
       if (ifShowSagittalCorona) {
+        const promiseList = [];
+        for (const file of this.files) {
+          promiseList.push(loadDicomAsync(file));
+        }
+        const bufferList = await Promise.all(promiseList);
+        // console.log("bufferList:", bufferList);
+        const series = new daikon.Series();
+
+        for (const buffer of bufferList) {
+          const image = daikon.Series.parseImage(new DataView(buffer as any));
+          // console.log(image.getSliceLocation());
+
+          if (image === null) {
+            console.error(daikon.Series.parserError);
+          } else if (image.hasPixelData()) {
+            if (image.getAcquiredSliceDirection() != 2) {
+              console.log(
+                "not axial dicom:",
+                image.getAcquiredSliceDirection()
+              );
+              continue;
+            }
+
+            if (series.images.length === 0) {
+              series.addImage(image);
+            }
+
+            // if it's part of the same series, add it
+            else if (image.getSeriesId() === series.images[0].getSeriesId()) {
+              if (
+                image.getSliceThickness() ===
+                series.images[0].getSliceThickness()
+              ) {
+                series.addImage(image);
+              } else {
+                console.warn("not same slicethickness");
+              }
+            } else {
+              console.warn("not same seriesID(defined by daikon)");
+            }
+          }
+        }
+        // order the image files, determines number of frames, etc.
+
+        if (series.images.length > 0) {
+          series.buildSeries();
+          const images = series.images;
+          console.log("series images:", images);
+
+          // TODO: build SAGITTAL and CORONAL views
+          // NOTE: not support multi-frame or not default axial view now
+          // for (const image of images) {
+          //   console.log(image.getSliceLocation());
+          // }
+        } else {
+          console.warn("no series image");
+        }
+      } else {
+        console.log("ifShowSagittalCorona = false");
       }
     }
   };
@@ -1067,35 +1082,42 @@ class App extends Component<{}, State> {
                   justifyContent: "center",
                 }}
               >
-                <canvas
-                  onMouseDown={this.onMouseCanvasDown}
-                  // onMouseUp={this.onMouseUp0}
-                  // onScroll={this.onMouseMove}
-                  ref={this.myCanvasRef}
-                  width={128}
-                  height={128}
-                  style={{ backgroundColor: "purple" }}
-                />
+                <div>
+                  <canvas
+                    onMouseDown={this.onMouseCanvasDown}
+                    // onMouseUp={this.onMouseUp0}
+                    // onScroll={this.onMouseMove}
+                    ref={this.myCanvasRef}
+                    width={128}
+                    height={128}
+                    style={{ backgroundColor: "black" }}
+                  />
+                </div>
+
                 {ifShowSagittalCorona ? (
                   <>
-                    <canvas
-                      // onMouseDown={this.onMouseCanvasDown}
-                      // onMouseUp={this.onMouseUp0}
-                      // onScroll={this.onMouseMove}
-                      // ref={this.myCanvasRef}
-                      width={500}
-                      height={500}
-                      style={{ backgroundColor: "yellow" }}
-                    />
-                    <canvas
-                      // onMouseDown={this.onMouseCanvasDown}
-                      // onMouseUp={this.onMouseUp0}
-                      // onScroll={this.onMouseMove}
-                      // ref={this.myCanvasRef}
-                      width={500}
-                      height={500}
-                      style={{ backgroundColor: "green" }}
-                    />
+                    <div>
+                      <canvas
+                        // onMouseDown={this.onMouseCanvasDown}
+                        // onMouseUp={this.onMouseUp0}
+                        // onScroll={this.onMouseMove}
+                        // ref={this.myCanvasRef}
+                        width={500}
+                        height={500}
+                        style={{ backgroundColor: "yellow" }}
+                      />
+                    </div>
+                    <div>
+                      <canvas
+                        // onMouseDown={this.onMouseCanvasDown}
+                        // onMouseUp={this.onMouseUp0}
+                        // onScroll={this.onMouseMove}
+                        // ref={this.myCanvasRef}
+                        width={500}
+                        height={500}
+                        style={{ backgroundColor: "green" }}
+                      />
+                    </div>
                   </>
                 ) : null}
               </div>
