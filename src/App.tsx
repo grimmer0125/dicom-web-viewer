@@ -162,6 +162,7 @@ class App extends Component<{}, State> {
   isOnlineMode = true;
   currentImage: any;
   currentSeries: any;
+  currentSeriesImageObjects: any[];
   clientX: number;
   clientY: number;
 
@@ -197,6 +198,7 @@ class App extends Component<{}, State> {
     this.myCanvasRefSagittal = React.createRef();
     this.myCanvasRefCorona = React.createRef();
     this.files = [];
+    this.currentSeriesImageObjects = [];
     this.clientX = 0;
     this.clientY = 0;
   }
@@ -761,6 +763,11 @@ class App extends Component<{}, State> {
           series.buildSeries();
           series.images.reverse(); //since buildSeries will sort by z increase
           this.currentSeries = series;
+          this.currentSeriesImageObjects = [];
+          series.images.forEach((image: any) => {
+            const obj = image.getInterpretedData(false, true, 0); // obj.data: float32array
+            this.currentSeriesImageObjects.push(obj);
+          });
 
           const w = series.images[0].getCols();
           this.setState({
@@ -805,8 +812,7 @@ class App extends Component<{}, State> {
     // 0th row: series.images[0] 的第 j column
     const rawData: number[] = []; //new Array<number>(h * n_slice);
     // iterate each slice
-    images.forEach((image: any) => {
-      const obj = image.getInterpretedData(false, true, 0); // obj.data: float32array
+    this.currentSeriesImageObjects.forEach((obj: any) => {
       const data = obj.data as number[];
       // j column, toward right hand
       for (let i_row = 0; i_row < h; i_row++) {
@@ -849,8 +855,8 @@ class App extends Component<{}, State> {
     // 0th row: series.images[0] 的第 0 or final row
     const rawData: number[] = []; //new Array<number>(h * n_slice);
     // iterate each slice
-    images.forEach((image: any) => {
-      const obj = image.getInterpretedData(false, true, 0); // obj.data: float32array
+    this.currentSeriesImageObjects.forEach((obj: any) => {
+      // const obj = image.getInterpretedData(false, true, 0); // obj.data: float32array
       const data = obj.data as number[];
       // j column, toward right hand
       for (let i_column = 0; i_column < w; i_column++) {
