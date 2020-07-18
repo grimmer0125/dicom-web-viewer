@@ -45,3 +45,7 @@ Just drag your DICOM files/folder into Chrome browser and extension mode is anab
 1. DICOM video format.
 2. some non-linear Modality LUT case
 3. YBR Photometric Interpretation
+
+## Coordinate systems in medical images
+
+ref: https://www.slicer.org/wiki/Coordinate_systems
