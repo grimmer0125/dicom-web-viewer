@@ -120,6 +120,8 @@ type State = {
   ifShowSagittalCorona: boolean;
   currentSagittalNo: number; // start from 1
   totalSagittalFrames: number;
+  currentCoronaNo: number;
+  totalCoronaFrames: number;
 };
 
 interface NormalizationProps {
@@ -183,10 +185,12 @@ class App extends Component<{}, State> {
       // resY: '',
       // photometric: '',
       // modality: '',
-      currentSagittalNo: 0,
       currFileNo: 0,
       totalFiles: 0,
+      currentSagittalNo: 0,
       totalSagittalFrames: 0,
+      currentCoronaNo: 0,
+      totalCoronaFrames: 0,
       ...initialImageState,
     };
     this.myCanvasRef = React.createRef();
@@ -521,10 +525,14 @@ class App extends Component<{}, State> {
     let scale = 1;
     if (!extraHeightScale) {
       scale = this.resizeTotFit(rawDataWidth, rawDataHeight);
-    } else {
-      // sagittal view
-      scale = this.resizeTotFit(1, rawDataWidth);
     }
+    //  else if (canvasRef === this.myCanvasRefSagittal) {
+    //   // sagittal view
+    //   scale = this.resizeTotFit(1, rawDataWidth);
+    // } else {
+    //   scale = this.resizeTotFit(rawDataWidth, rawDataHeight);
+    // }
+
     if (scale !== 1) {
       console.log("scale:", scale);
     }
@@ -595,11 +603,21 @@ class App extends Component<{}, State> {
       currentSagittalNo: value,
     });
 
-    // const newFile = this.files[value - 1];
-    // console.log("switch to image:", value, newFile);
-
     if (!this.isOnlineMode) {
       this.buildSagittalView(this.currentSeries, value - 1);
+      // this.loadFile(newFile);
+    } else {
+      // this.fetchFile(newFile);
+    }
+  };
+
+  switchCorona = (value: number) => {
+    this.setState({
+      currentCoronaNo: value,
+    });
+
+    if (!this.isOnlineMode) {
+      this.buildCoronalView(this.currentSeries, value - 1);
       // this.loadFile(newFile);
     } else {
       // this.fetchFile(newFile);
@@ -667,7 +685,7 @@ class App extends Component<{}, State> {
       // 很難處理. 那就把 default 中間的 windowWidth, windowCenter 當做 useWindowWidth/center 好了
       // 2. *pass max/min<-??, width/height
       // 3. make another 2 view raw data
-      // 4. scale ????? 要 pass. 再乘上原本的 scale
+      // 4. scale ????? 要 pass. 再乘上原本的 scale<
       // 5. switch frames in 2 view,
       // 6. enable changing windowCenter & windowWidth?
       // 7. switch show mode
@@ -691,7 +709,17 @@ class App extends Component<{}, State> {
           if (image === null) {
             console.error(daikon.Series.parserError);
           } else if (image.hasPixelData()) {
-            if (image.getAcquiredSliceDirection() != 2) {
+            // Anatomical Orientation Type Attribute
+            // https://dicom.innolitics.com/ciods/12-lead-ecg/general-series/00102210
+            // Patient Orientation:
+            // https://dicom.innolitics.com/ciods/cr-image/general-image/00200020
+
+            // axial DICOM looks like a mirror image !! if its 0020,0037 is 1,0,0,0,1.0
+            // https://stackoverflow.com/questions/34782409/understanding-dicom-image-attributes-to-get-axial-coronal-sagittal-cuts/34783893
+            // https://dicom.innolitics.com/ciods/ct-image/image-plane/00200037
+
+            // https://www.slicer.org/wiki/Coordinate_systems
+            if (image.getAcquiredSliceDirection() !== 2) {
               console.log(
                 "not axial dicom:",
                 image.getAcquiredSliceDirection()
@@ -724,14 +752,21 @@ class App extends Component<{}, State> {
           series.buildSeries();
           series.images.reverse(); //since buildSeries will sort by z increase
           this.currentSeries = series;
-          const w = series.images[0].getCols();
 
+          const w = series.images[0].getCols();
           this.setState({
             totalSagittalFrames: w, //this.files.length,
             currentSagittalNo: 1,
           });
-          // TODO: build SAGITTAL and CORONAL views
+          // build SAGITTAL
           this.buildSagittalView(series, 0);
+          // build CORONAL views
+          const h = series.images[0].getRows();
+          this.setState({
+            totalCoronaFrames: h, //this.files.length,
+            currentCoronaNo: 1,
+          });
+          this.buildCoronalView(series, 0);
 
           // NOTE: not support multi-frame or not default axial view now
           // for (const image of images) {
@@ -746,21 +781,22 @@ class App extends Component<{}, State> {
     }
   };
 
+  // toward left hand
   buildSagittalView(series: any, j_sagittal: number) {
     const images = series.images;
     // console.log("series images:", images);
-    const w = series.images[0].getCols();
+    const w = images[0].getCols();
+    const h = images[0].getRows();
     if (j_sagittal >= w) {
-      console.error("ja_sagittal is >=w, invalid");
+      console.error("j_sagittal is >=w, invalid");
       return;
     }
-    const h = series.images[0].getRows();
-    const n_slice = series.images.length;
+    const n_slice = images.length;
     // sggittal: h*n_slice, 共 w 個. w 裡的第 j 個 sgg view的話,
     // 0th row: series.images[0] 的第 j column
     const rawData: number[] = []; //new Array<number>(h * n_slice);
     // iterate each slice
-    series.images.forEach((image: any) => {
+    images.forEach((image: any) => {
       const obj = image.getInterpretedData(false, true, 0); // obj.data: float32array
       const data = obj.data as number[];
       // j column, toward right hand
@@ -773,12 +809,10 @@ class App extends Component<{}, State> {
       return;
     }
 
-    // TODO: add scale
-
-    const spacing = series.images[0].getPixelSpacing();
+    const spacing = images[0].getPixelSpacing();
     const spaceW = spacing[0];
     const spaceH = spacing[1]; // shoudl equal to spaceW
-    const sliceThickness = series.images[0].getSliceThickness();
+    const sliceThickness = images[0].getSliceThickness();
 
     this.renderFrame({
       canvasRef: this.myCanvasRefSagittal,
@@ -791,7 +825,49 @@ class App extends Component<{}, State> {
     });
   }
 
-  buildCoronalView() {}
+  // toward posterior side of the patient.
+  buildCoronalView(series: any, k_corona: number) {
+    const images = series.images;
+    // console.log("series images:", images);
+    const w = images[0].getCols();
+    const h = images[0].getRows();
+    if (k_corona >= h) {
+      console.error("k_corona is >=h, invalid");
+      return;
+    }
+    const n_slice = images.length;
+    // sggittal: w*n_slice, 共 h 個. h 裡的第 k 個 corona view的話,
+    // 0th row: series.images[0] 的第 0 or final row
+    const rawData: number[] = []; //new Array<number>(h * n_slice);
+    // iterate each slice
+    images.forEach((image: any) => {
+      const obj = image.getInterpretedData(false, true, 0); // obj.data: float32array
+      const data = obj.data as number[];
+      // j column, toward right hand
+      for (let i_column = 0; i_column < w; i_column++) {
+        rawData.push(data[i_column + w * k_corona]);
+      }
+    });
+    if (rawData.length !== h * n_slice) {
+      console.error("coronal view's number of element is wrong");
+      return;
+    }
+
+    const spacing = images[0].getPixelSpacing();
+    const spaceW = spacing[0];
+    const spaceH = spacing[1]; // shoudl equal to spaceW
+    const sliceThickness = images[0].getSliceThickness();
+
+    this.renderFrame({
+      canvasRef: this.myCanvasRefCorona,
+      rawData,
+      rawDataWidth: w,
+      rawDataHeight: n_slice,
+      extraHeightScale: sliceThickness / spaceW,
+      useWindowCenter: -650,
+      useWindowWidth: 1600,
+    });
+  }
 
   handleSwitchFrame = (
     e: React.SyntheticEvent<HTMLElement, Event>,
@@ -1018,6 +1094,8 @@ class App extends Component<{}, State> {
       ifShowSagittalCorona,
       currentSagittalNo,
       totalSagittalFrames,
+      currentCoronaNo,
+      totalCoronaFrames,
     } = this.state;
     let info = "[meta]";
     info += ` modality:${modality};photometric:${photometric}`;
@@ -1226,6 +1304,13 @@ class App extends Component<{}, State> {
                     min={1}
                     max={totalSagittalFrames}
                     onChange={this.switchSagittal}
+                  />
+                  <Slider
+                    value={currentCoronaNo}
+                    step={1}
+                    min={1}
+                    max={totalSagittalFrames}
+                    onChange={this.switchCorona}
                   />
                 </div>
               </div>
