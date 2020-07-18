@@ -118,6 +118,8 @@ type State = {
   useWindowCenter: number;
   useWindowWidth: number;
   ifShowSagittalCorona: boolean;
+  currentSagittalNo: number; // start from 1
+  totalSagittalFrames: number;
 };
 
 interface NormalizationProps {
@@ -152,6 +154,8 @@ function NormalizationComponent(props: NormalizationProps) {
 
 class App extends Component<{}, State> {
   myCanvasRef: React.RefObject<HTMLCanvasElement>;
+  myCanvasRefSagittal: React.RefObject<HTMLCanvasElement>;
+  myCanvasRefCorona: React.RefObject<HTMLCanvasElement>;
   files: any[];
   isOnlineMode = true;
   currentImage: any;
@@ -165,7 +169,7 @@ class App extends Component<{}, State> {
       currNormalizeMode: NormalizationMode.WindowCenter,
       ifWindowCenterMode: true,
       currFilePath: "",
-      ifShowSagittalCorona: false,
+      ifShowSagittalCorona: true,
       useWindowCenter: 0,
       useWindowWidth: -1,
       // multiFrameInfo: '',
@@ -179,11 +183,15 @@ class App extends Component<{}, State> {
       // resY: '',
       // photometric: '',
       // modality: '',
+      currentSagittalNo: 0,
       currFileNo: 0,
       totalFiles: 0,
+      totalSagittalFrames: 0,
       ...initialImageState,
     };
     this.myCanvasRef = React.createRef();
+    this.myCanvasRefSagittal = React.createRef();
+    this.myCanvasRefCorona = React.createRef();
     this.files = [];
     this.clientX = 0;
     this.clientY = 0;
@@ -215,10 +223,10 @@ class App extends Component<{}, State> {
     }
   }
 
-  // TODO:
-  // 切到新的 image, mode 保持好了, useWindowWidth 會 reset,
-  // 切同一張圖不同的 frame 呢? mode 保持, useWindowWidth呢????? 保持好了
-  // 切不同的 mode 呢? (就不能用客制化的 useWindowWidth, 要 reset )
+  // NOTE:
+  // when switch to new image, keeps mode and useWindowWidth will not reset (if not same seris, a little wired)
+  // switch to new frame (same image)? keeps mode and useWindowWidth will not reset
+  // swtich to different mode (useWindowWidth will be reset )
 
   handleNormalizeModeChange = (
     e: React.FormEvent<HTMLInputElement>,
@@ -244,7 +252,12 @@ class App extends Component<{}, State> {
 
     if (this.currentImage) {
       const { currFrameIndex } = this.state;
-      this.renderFrame(this.currentImage, currFrameIndex, newMode, -1);
+      this.renderFrame({
+        image: this.currentImage,
+        frameIndex: currFrameIndex,
+        currNormalizeMode: newMode,
+        useWindowWidth: -1,
+      });
     }
   };
 
@@ -285,81 +298,119 @@ class App extends Component<{}, State> {
         currFrameIndex: 0,
       });
       this.currentImage = image;
-      this.renderFrame(this.currentImage, 0);
+      this.renderFrame({ image: this.currentImage, frameIndex: 0 });
     }
   };
 
   renderFrame = (
-    image: any,
-    frameIndex: number,
-    currNormalizeMode?: number,
-    useWindowWidth?: number,
-    useWindowCenter?: number
+    arg: {
+      image?: any;
+      frameIndex?: number;
+      currNormalizeMode?: number;
+      useWindowWidth?: number;
+      useWindowCenter?: number;
+      canvasRef?: React.RefObject<HTMLCanvasElement>;
+      rawData?: number[];
+      rawDataWidth?: number;
+      rawDataHeight?: number;
+      extraHeightScale?: number;
+    }
     // ifWindowCenterMode?: boolean
   ) => {
+    let {
+      image,
+      frameIndex,
+      currNormalizeMode,
+      useWindowWidth,
+      useWindowCenter,
+      canvasRef,
+      rawData,
+      rawDataWidth,
+      rawDataHeight,
+      extraHeightScale,
+    } = arg;
     console.log(`switch to ${frameIndex} Frame`);
-
-    const seriesID = image.getSeriesId();
-    const a1 = image.getImageDirections(); // [100010]
-    const a2 = image.getImagePosition(); //[-155, -170, -189.75]
-    const a3 = image.getSeriesNumber(); //5
-    const a4 = image.getPixelSpacing(); //[0.66, 0.66] mm
-    const a5 = image.getSliceThickness(); //5 mm
-    const a6 = image.getAcquiredSliceDirection(); //2
-    // daikon.Image.SLICE_DIRECTION_UNKNOWN = -1;
-    // daikon.Image.SLICE_DIRECTION_AXIAL = 2;
-    // daikon.Image.SLICE_DIRECTION_CORONAL = 1;
-    // daikon.Image.SLICE_DIRECTION_SAGITTAL = 0;
-    // daikon.Image.SLICE_DIRECTION_OBLIQUE = 3;
-    const a7 = image.getSliceLocation(); //-189.75
 
     let ifRGB = false;
     let rgbMode = 0; // 0: rgbrgb... 1: rrrgggbbb
-    // BUG:
-    // fetchFile (file://) case will need longer time to getPhotometricInterpretation after using a while
-    const photometric = image.getPhotometricInterpretation();
-    const modality = image.getModality();
-    if (photometric !== null) {
-      // const mode = image.getPlanarConfig();
-      // console.log("Planar mode:", mode);
-      if (photometric.trim().indexOf("RGB") !== -1) {
-        ifRGB = true;
+    let windowWidth: number | null = null;
+    let windowCenter: number | null = null;
+    let storeMax;
+    let storeMin;
 
-        rgbMode = image.getPlanarConfig() || 0;
-      } else if (photometric.trim().toLowerCase().indexOf("palette") !== -1) {
-        ifRGB = true;
+    if (!canvasRef || canvasRef === this.myCanvasRef) {
+      const seriesID = image.getSeriesId();
+      const a1 = image.getImageDirections(); // [100010]
+      const a2 = image.getImagePosition(); //[-155, -170, -189.75]
+      const a3 = image.getSeriesNumber(); //5
+      const a4 = image.getPixelSpacing(); //[0.66, 0.66] mm
+      const a5 = image.getSliceThickness(); //5 mm
+      const a6 = image.getAcquiredSliceDirection(); //2
+      // daikon.Image.SLICE_DIRECTION_UNKNOWN = -1;
+      // daikon.Image.SLICE_DIRECTION_AXIAL = 2;
+      // daikon.Image.SLICE_DIRECTION_CORONAL = 1;
+      // daikon.Image.SLICE_DIRECTION_SAGITTAL = 0;
+      // daikon.Image.SLICE_DIRECTION_OBLIQUE = 3;
+      const a7 = image.getSliceLocation(); //-189.75
+
+      // BUG:
+      // fetchFile (file://) case will need longer time to getPhotometricInterpretation after using a while
+      const photometric = image.getPhotometricInterpretation();
+      const modality = image.getModality();
+      if (photometric !== null) {
+        // const mode = image.getPlanarConfig();
+        // console.log("Planar mode:", mode);
+        if (photometric.trim().indexOf("RGB") !== -1) {
+          ifRGB = true;
+
+          rgbMode = image.getPlanarConfig() || 0;
+        } else if (photometric.trim().toLowerCase().indexOf("palette") !== -1) {
+          ifRGB = true;
+        }
       }
+
+      // getPhotometricInterpretation
+      // https://github.com/rii-mango/Daikon/issues/4
+      // The new function will handle things like byte order, number of bytes per voxel, datatype, data scales, etc.
+      // It returns an array of floating point values. So far this is only working for plain intensity data, not RGB.
+      let obj;
+      try {
+        // BUG: latest daikon will throw a exception when calliing getInterpretedData for palette case
+        obj = image.getInterpretedData(false, true, frameIndex); // obj.data: float32array
+      } catch (e) {
+        console.log("read dicom InterpretedData error:", e);
+        return;
+      }
+      storeMax = obj.max;
+      storeMin = obj.min;
+      rawData = obj.data as number[];
+      rawDataWidth = obj.numCols as number;
+      rawDataHeight = obj.numRows as number;
+      // center/width may be null
+      windowCenter = image.getWindowCenter() as number;
+      windowWidth = image.getWindowWidth() as number;
+      // console.log("max:", typeof obj.max);
+      // console.log("windowCenter:", typeof windowCenter);
+      this.setState({
+        windowCenter,
+        windowWidth,
+        pixelMax: obj.max,
+        pixelMin: obj.min,
+        resX: rawDataWidth,
+        resY: rawDataHeight,
+        modality,
+        photometric,
+      });
     }
 
-    // getPhotometricInterpretation
-    // https://github.com/rii-mango/Daikon/issues/4
-    // The new function will handle things like byte order, number of bytes per voxel, datatype, data scales, etc.
-    // It returns an array of floating point values. So far this is only working for plain intensity data, not RGB.
-    let obj;
-    try {
-      // BUG: latest daikon will throw a exception when calliing getInterpretedData for palette case
-      obj = image.getInterpretedData(false, true, frameIndex); // obj.data: float32array
-    } catch (e) {
-      console.log("read dicom InterpretedData error:", e);
+    if (!rawDataWidth || !rawDataHeight) {
+      console.error("no width/height info. give up render ");
       return;
     }
-    const width: number = obj.numCols;
-    const height: number = obj.numRows;
-    // center/width may be null
-    const windowCenter = image.getWindowCenter() as number;
-    const windowWidth = image.getWindowWidth() as number;
-    // console.log("max:", typeof obj.max);
-    // console.log("windowCenter:", typeof windowCenter);
-    this.setState({
-      windowCenter,
-      windowWidth,
-      pixelMax: obj.max,
-      pixelMin: obj.min,
-      resX: width,
-      resY: height,
-      modality,
-      photometric,
-    });
+    if (!rawData) {
+      console.error("no rawData. give up render ");
+      return;
+    }
 
     let max;
     let min;
@@ -372,65 +423,67 @@ class App extends Component<{}, State> {
     if (useWindowCenter === undefined) {
       ({ useWindowCenter } = this.state);
     }
-
+    console.log("useWindowWidth:", useWindowWidth);
     ({ max, min } = this.getNormalizationRange(
       useWindowWidth,
       useWindowCenter,
       currNormalizeMode,
       windowWidth,
       windowCenter,
-      obj.max,
-      obj.min
+      storeMax,
+      storeMin
     ));
 
-    // truncate
-    if (min !== obj.min || max !== obj.max) {
-      for (let i = 0; i < obj.data.length; i += 1) {
-        if (obj.data[i] > max) {
-          obj.data[i] = max;
-        } else if (obj.data[i] < min) {
-          obj.data[i] = min;
-        }
-      }
+    if (!canvasRef) {
+      canvasRef = this.myCanvasRef;
     }
-
-    if (!this.myCanvasRef.current) {
-      console.log("this.myCanvasRef is not ready, return");
+    if (!canvasRef.current) {
+      console.log("canvasRef is not ready, return");
       return;
     }
 
     // const c = this.myCanvasRef.current; // document.getElementById("myCanvas");
     const c = document.createElement("canvas");
-    c.width = width;
-    c.height = height;
+    c.width = rawDataWidth;
+    c.height = rawDataHeight;
     // Create context from canvas
     const ctx = c.getContext("2d");
     // Create ImageData object
     if (!ctx) {
       return;
     }
-    const imgData = ctx.createImageData(width, height);
+    const imgData = ctx.createImageData(rawDataWidth, rawDataHeight);
     const { data } = imgData; // .data; // width x height x 4 (RGBA), Uint8ClampedArray
 
     if (!ifRGB) {
-      const delta = max - min;
       // Create array view
-      const array = new Uint8ClampedArray(obj.data.length);
-      for (let i = 0; i < obj.data.length; i += 1) {
-        // normalization
-        array[i] = ((obj.data[i] - min) * 255) / delta;
+      // const array = new Uint8ClampedArray(rawData.length);
+      if (max && min) {
+        const delta = max - min;
+        for (let i = 0; i < rawData.length; i += 1) {
+          // truncate
+          if (min !== storeMax || max !== storeMin) {
+            if (rawData[i] > max) {
+              rawData[i] = max;
+            } else if (rawData[i] < min) {
+              rawData[i] = min;
+            }
+          }
+          // normalization
+          rawData[i] = ((rawData[i] - min) * 255) / delta;
+        }
       }
       for (let i = 0, k = 0; i < data.byteLength; i += 4, k += 1) {
-        data[i] = array[k];
-        data[i + 1] = array[k];
-        data[i + 2] = array[k];
+        data[i] = rawData[k];
+        data[i + 1] = rawData[k];
+        data[i + 2] = rawData[k];
         data[i + 3] = 255;
       }
     } else if (rgbMode === 0) {
       // if 3 channels, pixel array'order is at Tag (0028, 0006)
       // Planar Configuration = 0 -> R1, G1, B1, R2, G2, B2, …
       // Planar Configuration = 1 -> R1, R2, R3, …, G1, G2, G3, …, B1, B2, B3
-      const array = obj.data;
+      const array = rawData;
       for (let i = 0, k = 0; i < data.byteLength; i += 1, k += 1) {
         data[i] = array[k];
         if ((i + 2) % 4 === 0) {
@@ -440,7 +493,7 @@ class App extends Component<{}, State> {
       }
     } else {
       // Note: tested. https://barre.dev/medical/samples/US-RGB-8-epicard
-      const array = obj.data;
+      const array = rawData;
       const pixelCount = array.length / 3;
       for (let i = 0, k = 0; i < data.byteLength; i += 1, k += 1) {
         // data[i] = array[k];
@@ -465,13 +518,23 @@ class App extends Component<{}, State> {
     // console.log("fill data to ctx's imagedata done, then draw our imagedata onto the canvas")
     ctx.putImageData(imgData, 0, 0);
 
-    let scale = this.resizeTotFit(width, height);
+    let scale = 1;
+    if (!extraHeightScale) {
+      scale = this.resizeTotFit(rawDataWidth, rawDataHeight);
+    } else {
+      // sagittal view
+      scale = this.resizeTotFit(1, rawDataWidth);
+    }
     if (scale !== 1) {
       console.log("scale:", scale);
     }
-    const c2: any = this.myCanvasRef.current;
-    c2.width = width / scale;
-    c2.height = height / scale;
+    const c2: any = canvasRef.current;
+    c2.width = rawDataWidth / scale;
+    c2.height = rawDataHeight / scale;
+    if (extraHeightScale) {
+      console.log("extraHeightScale:", extraHeightScale);
+      c2.height = c2.height * extraHeightScale;
+    }
     const ctx2 = c2.getContext("2d");
     ctx2.drawImage(c, 0, 0, c2.width, c2.height);
   };
@@ -492,10 +555,10 @@ class App extends Component<{}, State> {
       totalFiles: this.files.length,
       currFileNo: 1,
     });
+    this.fetchFile(this.files[0]);
     const { ifShowSagittalCorona } = this.state;
     if (ifShowSagittalCorona) {
     } else {
-      this.fetchFile(this.files[0]);
     }
   }
 
@@ -524,6 +587,22 @@ class App extends Component<{}, State> {
       this.loadFile(newFile);
     } else {
       this.fetchFile(newFile);
+    }
+  };
+
+  switchSagittal = (value: number) => {
+    this.setState({
+      currentSagittalNo: value,
+    });
+
+    // const newFile = this.files[value - 1];
+    // console.log("switch to image:", value, newFile);
+
+    if (!this.isOnlineMode) {
+      this.buildSagittalView(this.currentSeries, value - 1);
+      // this.loadFile(newFile);
+    } else {
+      // this.fetchFile(newFile);
     }
   };
 
@@ -583,6 +662,19 @@ class App extends Component<{}, State> {
       });
       this.loadFile(this.files[0]);
       const { ifShowSagittalCorona } = this.state;
+      // TODO:
+      // 1. 如果每一張的 window center, width 不一樣呢?
+      // 很難處理. 那就把 default 中間的 windowWidth, windowCenter 當做 useWindowWidth/center 好了
+      // 2. *pass max/min<-??, width/height
+      // 3. make another 2 view raw data
+      // 4. scale ????? 要 pass. 再乘上原本的 scale
+      // 5. switch frames in 2 view,
+      // 6. enable changing windowCenter & windowWidth?
+      // 7. switch show mode
+      // 8. 應該不能每個 frame 都用其極值 normalize, 要嘛統一用 windowCenter, 如果沒有就用原本的值
+      // 9. *axial view 也存著全部的 rawData ?
+      // 10. 不處理 多張同時又是 multi-frame 的 case
+
       if (ifShowSagittalCorona) {
         const promiseList = [];
         for (const file of this.files) {
@@ -630,10 +722,17 @@ class App extends Component<{}, State> {
 
         if (series.images.length > 0) {
           series.buildSeries();
-          const images = series.images;
-          console.log("series images:", images);
+          series.images.reverse(); //since buildSeries will sort by z increase
+          this.currentSeries = series;
+          const w = series.images[0].getCols();
 
+          this.setState({
+            totalSagittalFrames: w, //this.files.length,
+            currentSagittalNo: 1,
+          });
           // TODO: build SAGITTAL and CORONAL views
+          this.buildSagittalView(series, 0);
+
           // NOTE: not support multi-frame or not default axial view now
           // for (const image of images) {
           //   console.log(image.getSliceLocation());
@@ -647,6 +746,53 @@ class App extends Component<{}, State> {
     }
   };
 
+  buildSagittalView(series: any, j_sagittal: number) {
+    const images = series.images;
+    // console.log("series images:", images);
+    const w = series.images[0].getCols();
+    if (j_sagittal >= w) {
+      console.error("ja_sagittal is >=w, invalid");
+      return;
+    }
+    const h = series.images[0].getRows();
+    const n_slice = series.images.length;
+    // sggittal: h*n_slice, 共 w 個. w 裡的第 j 個 sgg view的話,
+    // 0th row: series.images[0] 的第 j column
+    const rawData: number[] = []; //new Array<number>(h * n_slice);
+    // iterate each slice
+    series.images.forEach((image: any) => {
+      const obj = image.getInterpretedData(false, true, 0); // obj.data: float32array
+      const data = obj.data as number[];
+      // j column, toward right hand
+      for (let i_row = 0; i_row < h; i_row++) {
+        rawData.push(data[j_sagittal + w * i_row]);
+      }
+    });
+    if (rawData.length !== h * n_slice) {
+      console.error("sagittal view's number of element is wrong");
+      return;
+    }
+
+    // TODO: add scale
+
+    const spacing = series.images[0].getPixelSpacing();
+    const spaceW = spacing[0];
+    const spaceH = spacing[1]; // shoudl equal to spaceW
+    const sliceThickness = series.images[0].getSliceThickness();
+
+    this.renderFrame({
+      canvasRef: this.myCanvasRefSagittal,
+      rawData,
+      rawDataWidth: h,
+      rawDataHeight: n_slice,
+      extraHeightScale: sliceThickness / spaceH,
+      useWindowCenter: -650,
+      useWindowWidth: 1600,
+    });
+  }
+
+  buildCoronalView() {}
+
   handleSwitchFrame = (
     e: React.SyntheticEvent<HTMLElement, Event>,
     obj: DropdownProps
@@ -658,7 +804,7 @@ class App extends Component<{}, State> {
     this.setState({
       currFrameIndex: value,
     });
-    this.renderFrame(this.currentImage, value);
+    this.renderFrame({ image: this.currentImage, frameIndex: value });
   };
 
   resizeTotFit(width: number, height: number) {
@@ -776,11 +922,13 @@ class App extends Component<{}, State> {
           useWindowWidth: newWindowWidth,
         });
         this.renderFrame(
-          this.currentImage,
-          currFrameIndex,
-          currNormalizeMode,
-          newWindowWidth,
-          newWindowCenter
+          {
+            image: this.currentImage,
+            frameIndex: currFrameIndex,
+            currNormalizeMode: currNormalizeMode,
+            useWindowWidth: newWindowWidth,
+            useWindowCenter: newWindowCenter,
+          }
           // useWindowCenter //useWindowCenter
         );
       }
@@ -796,8 +944,8 @@ class App extends Component<{}, State> {
     useWindowWidth: number,
     useWindowCenter: number,
     currNormalizeMode: number,
-    windowWidth: number,
-    windowCenter: number,
+    windowWidth: number | null,
+    windowCenter: number | null,
     pixelMax: number,
     pixelMin: number
   ) {
@@ -868,6 +1016,8 @@ class App extends Component<{}, State> {
       useWindowWidth,
       useWindowCenter,
       ifShowSagittalCorona,
+      currentSagittalNo,
+      totalSagittalFrames,
     } = this.state;
     let info = "[meta]";
     info += ` modality:${modality};photometric:${photometric}`;
@@ -1070,6 +1220,13 @@ class App extends Component<{}, State> {
                     max={totalFiles}
                     onChange={this.switchImage}
                   />
+                  <Slider
+                    value={currentSagittalNo}
+                    step={1}
+                    min={1}
+                    max={totalSagittalFrames}
+                    onChange={this.switchSagittal}
+                  />
                 </div>
               </div>
             ) : null}
@@ -1088,8 +1245,8 @@ class App extends Component<{}, State> {
                     // onMouseUp={this.onMouseUp0}
                     // onScroll={this.onMouseMove}
                     ref={this.myCanvasRef}
-                    width={128}
-                    height={128}
+                    width={500}
+                    height={500}
                     style={{ backgroundColor: "black" }}
                   />
                 </div>
@@ -1101,7 +1258,7 @@ class App extends Component<{}, State> {
                         // onMouseDown={this.onMouseCanvasDown}
                         // onMouseUp={this.onMouseUp0}
                         // onScroll={this.onMouseMove}
-                        // ref={this.myCanvasRef}
+                        ref={this.myCanvasRefSagittal}
                         width={500}
                         height={500}
                         style={{ backgroundColor: "yellow" }}
@@ -1112,7 +1269,7 @@ class App extends Component<{}, State> {
                         // onMouseDown={this.onMouseCanvasDown}
                         // onMouseUp={this.onMouseUp0}
                         // onScroll={this.onMouseMove}
-                        // ref={this.myCanvasRef}
+                        ref={this.myCanvasRefCorona}
                         width={500}
                         height={500}
                         style={{ backgroundColor: "green" }}
