@@ -56,3 +56,24 @@ Reference:
 4. https://stackoverflow.com/questions/34782409/understanding-dicom-image-attributes-to-get-axial-coronal-sagittal-cuts/34783893
 5. https://dicom.innolitics.com/ciods/ct-image/image-plane/00200037
 6. https://www.slicer.org/wiki/Coordinate_systems
+
+## how to order series dicom files
+
+daikon code snippet
+
+```
+if (hasImagePosition) {
+   // (0020,0032)
+   ordered = daikon.Series.orderByImagePosition(dg, sliceDir);
+} else if (hasSliceLocation) {
+   // (0020,1041)
+   ordered = daikon.Series.orderBySliceLocation(dg);
+} else if (hasImageNumber) {
+   // (0020, 0013)
+   ordered = daikon.Series.orderByImageNumber(dg);
+```
+
+## 3d note
+
+1. https://stackoverflow.com/questions/6597843/dicom-slice-ordering
+2. https://stackoverflow.com/questions/55120374/how-to-get-the-position-of-2d-dicom-image-slice-in-3d-surface-rendered-output-in

@@ -706,6 +706,15 @@ class App extends Component<{}, State> {
           const image = daikon.Series.parseImage(new DataView(buffer as any));
           // console.log(image.getSliceLocation());
 
+          const orientationArray = image.getImageDirections(); //[1,0,0,0,1,0] Tag	(0020,0037)
+          const daikonOrientation = image.getOrientation(); //XYZ--+
+          console.log(
+            "orientationArray:",
+            orientationArray,
+            ";daikonOrientation:",
+            daikonOrientation
+          );
+
           if (image === null) {
             console.error(daikon.Series.parserError);
           } else if (image.hasPixelData()) {
