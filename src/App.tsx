@@ -165,6 +165,8 @@ class App extends Component<{}, State> {
   currentSeriesImageObjects: any[];
   clientX: number;
   clientY: number;
+  seriesGlobalMax: number;
+  seriesGlobalMin: number;
 
   constructor() {
     super({});
@@ -175,6 +177,7 @@ class App extends Component<{}, State> {
       ifShowSagittalCoronal: true,
       useWindowCenter: 0,
       useWindowWidth: -1,
+
       // multiFrameInfo: '',
       // currFrameIndex: 0,
       // frameIndexes: [],
@@ -201,6 +204,8 @@ class App extends Component<{}, State> {
     this.currentSeriesImageObjects = [];
     this.clientX = 0;
     this.clientY = 0;
+    this.seriesGlobalMax = 0;
+    this.seriesGlobalMin = 0;
   }
 
   componentDidMount() {
@@ -495,8 +500,8 @@ class App extends Component<{}, State> {
       currNormalizeMode,
       windowWidth,
       windowCenter,
-      storeMax,
-      storeMin
+      storeMax ? storeMax : this.seriesGlobalMax,
+      storeMin ? storeMin : this.seriesGlobalMin
     ));
 
     if (!canvasRef) {
@@ -824,24 +829,26 @@ class App extends Component<{}, State> {
       this.currentSeriesImageObjects = [];
       let useWindowCenter = series.images[0].getWindowCenter() as number;
       let useWindowWidth = series.images[0].getWindowWidth() as number;
-      let globalMax: number | undefined;
-      let globalMin: number | undefined;
+      let globalMax = 0;
+      let globalMin = 0;
       series.images.forEach((image: any) => {
         // TODO: handle exception case
         const obj = image.getInterpretedData(false, true, 0); // obj.data: float32array
         let max = obj.max;
         let min = obj.min;
         this.currentSeriesImageObjects.push(obj);
-        if (useWindowCenter === null) {
-          if (globalMax === undefined || max > globalMax) {
-            globalMax = max;
-          }
-          if (globalMin === undefined || min < globalMin) {
-            globalMin = min;
-          }
+        // if (useWindowCenter === null) {
+        if (globalMax === undefined || max > globalMax) {
+          globalMax = max;
         }
+        if (globalMin === undefined || min < globalMin) {
+          globalMin = min;
+        }
+        // }
       });
-      if (globalMax === undefined || globalMin === undefined) {
+      this.seriesGlobalMax = globalMax;
+      this.seriesGlobalMin = globalMin;
+      if (useWindowWidth) {
         this.setState({
           useWindowCenter,
           useWindowWidth,
@@ -939,7 +946,7 @@ class App extends Component<{}, State> {
       // 5. x switch frames in 2 view,
       // 6. x enable changing windowCenter & windowWidth? onMouseMove/
       // 15.x [todo]!! add handleNormalizeModeChange(switch show mode) on sagittal/coronal ???
-      // 17. 這個要跟 global max/min mode 一起做
+      // 17.x 這個要跟 global max/min mode 一起做
       // 4. mm scale ????? 要 pass. 再乘上原本的 scale<
       // 13. [todo] test switchImage/onKeyDown x switchFrame
       // 8. x 應該不能每個 frame 都用其極值 normalize, 要嘛統一用 windowCenter, 如果沒有就用原本的值
