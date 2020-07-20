@@ -117,7 +117,7 @@ type State = {
   isValidMouseDown: boolean; // switch to another image, becomes invalid
   useWindowCenter: number;
   useWindowWidth: number;
-  ifShowSagittalCorona: boolean;
+  ifShowSagittalCoronal: boolean;
   currentSagittalNo: number; // start from 1
   totalSagittalFrames: number;
   currentCoronaNo: number;
@@ -172,7 +172,7 @@ class App extends Component<{}, State> {
       currNormalizeMode: NormalizationMode.WindowCenter,
       ifWindowCenterMode: true,
       currFilePath: "",
-      ifShowSagittalCorona: true,
+      ifShowSagittalCoronal: true,
       useWindowCenter: 0,
       useWindowWidth: -1,
       // multiFrameInfo: '',
@@ -247,23 +247,55 @@ class App extends Component<{}, State> {
     // } else {
     //   ifWindowCenterMode = false;
     // }
-    const newMode = value as number;
-    this.setState({
-      useWindowCenter: 0,
-      useWindowWidth: -1,
-      currNormalizeMode: newMode,
-    });
 
     // this.setState({ ifWindowCenterMode });
 
     if (this.currentImage) {
-      const { currFrameIndex } = this.state;
+      let windowCenter;
+      let windowWidth;
+
+      const newMode = value as number;
+      if (newMode === NormalizationMode.WindowCenter) {
+        windowCenter = this.currentImage.getWindowCenter() as number;
+        windowWidth = this.currentImage.getWindowWidth() as number;
+      }
+      const newWindowCenter = windowCenter ? windowCenter : 0;
+      const newWindowWidth = windowWidth ? windowWidth : -1;
+      this.setState({
+        useWindowCenter: newWindowCenter,
+        useWindowWidth: newWindowWidth,
+        currNormalizeMode: newMode,
+      });
+
+      const {
+        currFrameIndex,
+        ifShowSagittalCoronal,
+        currentCoronaNo,
+        currentSagittalNo,
+      } = this.state;
       this.renderFrame({
         image: this.currentImage,
         frameIndex: currFrameIndex,
         currNormalizeMode: newMode,
-        useWindowWidth: -1,
+        useWindowCenter: newWindowCenter,
+        useWindowWidth: newWindowWidth,
       });
+      if (ifShowSagittalCoronal) {
+        this.buildSagittalView(
+          this.currentSeries,
+          currentSagittalNo - 1,
+          newWindowCenter,
+          newWindowWidth,
+          newMode
+        );
+        this.buildCoronalView(
+          this.currentSeries,
+          currentCoronaNo - 1,
+          newWindowCenter,
+          newWindowWidth,
+          newMode
+        );
+      }
     }
   };
 
@@ -494,11 +526,12 @@ class App extends Component<{}, State> {
 
         // Create array view
         // const array = new Uint8ClampedArray(rawData.length);
+        // BUG: coranal/sagittal may have undefined so will not have normalization
         if (max && min) {
           const delta = max - min;
           // for (let i = 0; i < rawData.length; i += 1) {
           // truncate
-          if (min !== storeMax || max !== storeMin) {
+          if (min !== storeMin || max !== storeMax) {
             if (value > max) {
               value = max;
             } else if (value < min) {
@@ -592,8 +625,8 @@ class App extends Component<{}, State> {
       }
     });
 
-    const { ifShowSagittalCorona } = this.state;
-    if (ifShowSagittalCorona) {
+    const { ifShowSagittalCoronal } = this.state;
+    if (ifShowSagittalCoronal) {
       await this.loadSeriesFilesToRender(this.files);
     } else {
       this.setState({
@@ -622,8 +655,8 @@ class App extends Component<{}, State> {
       currFileNo: value,
     });
 
-    const ifShowSagittalCorona = this.state;
-    if (ifShowSagittalCorona) {
+    const ifShowSagittalCoronal = this.state;
+    if (ifShowSagittalCoronal) {
       this.buildAxialView(
         this.currentSeries,
         this.currentSeriesImageObjects,
@@ -666,8 +699,8 @@ class App extends Component<{}, State> {
     this.setState({
       ...initialImageState,
     });
-    const { ifShowSagittalCorona } = this.state;
-    if (!ifShowSagittalCorona) {
+    const { ifShowSagittalCoronal } = this.state;
+    if (!ifShowSagittalCoronal) {
       this.setState({
         useWindowCenter: 0,
         useWindowWidth: -1,
@@ -897,16 +930,17 @@ class App extends Component<{}, State> {
         totalFiles: this.files.length,
         currFileNo: 1,
       });
-      const { ifShowSagittalCorona } = this.state;
+      const { ifShowSagittalCoronal } = this.state;
       // TODO:
       // 1. 如果每一張的 window center, width 不一樣呢?
       // 很難處理. 那就把 default 中間的 windowWidth, windowCenter 當做 useWindowWidth/center 好了
       // 2. *pass max/min<-??, width/height
       // 3. x make another 2 view raw data
       // 5. x switch frames in 2 view,
-      // x mm 6. enable changing windowCenter & windowWidth? onMouseMove/
-      // mm 15. add handleNormalizeModeChange(switch show mode) on sagittal/coronal ???
-      // mm 4. scale ????? 要 pass. 再乘上原本的 scale<
+      // 6. x enable changing windowCenter & windowWidth? onMouseMove/
+      // 15.x [todo]!! add handleNormalizeModeChange(switch show mode) on sagittal/coronal ???
+      // 17. 這個要跟 global max/min mode 一起做
+      // 4. mm scale ????? 要 pass. 再乘上原本的 scale<
       // 13. [todo] test switchImage/onKeyDown x switchFrame
       // 8. x 應該不能每個 frame 都用其極值 normalize, 要嘛統一用 windowCenter, 如果沒有就用原本的值
       // 12. [todo] test http case
@@ -914,10 +948,10 @@ class App extends Component<{}, State> {
       // 9. *axial view 也存著全部的 rawData ???? yes
       // 10. p.s. 不處理 多張同時又是 multi-frame 的 case
 
-      if (ifShowSagittalCorona) {
+      if (ifShowSagittalCoronal) {
         await this.loadSeriesFilesToRender(this.files);
       } else {
-        console.log("ifShowSagittalCorona = false");
+        console.log("ifShowSagittalCoronal = false");
         this.setState({
           totalFiles: this.files.length,
           currFileNo: 1,
@@ -932,7 +966,8 @@ class App extends Component<{}, State> {
     series: any,
     j_sagittal: number,
     useWindowCenter?: number,
-    useWindowWidth?: number
+    useWindowWidth?: number,
+    currNormalizeMode?: number
   ) {
     const images = series.images;
     // console.log("series images:", images);
@@ -972,6 +1007,7 @@ class App extends Component<{}, State> {
       extraHeightScale: sliceThickness / spaceH,
       useWindowCenter,
       useWindowWidth,
+      currNormalizeMode,
     });
   }
 
@@ -980,7 +1016,8 @@ class App extends Component<{}, State> {
     series: any,
     k_corona: number,
     useWindowCenter?: number,
-    useWindowWidth?: number
+    useWindowWidth?: number,
+    currNormalizeMode?: number
   ) {
     const images = series.images;
     // console.log("series images:", images);
@@ -1021,6 +1058,7 @@ class App extends Component<{}, State> {
       extraHeightScale: sliceThickness / spaceW,
       useWindowCenter,
       useWindowWidth,
+      currNormalizeMode,
     });
   }
 
@@ -1115,7 +1153,7 @@ class App extends Component<{}, State> {
       useWindowCenter,
       currFrameIndex,
       currNormalizeMode,
-      ifShowSagittalCorona,
+      ifShowSagittalCoronal,
       currentCoronaNo,
       currentSagittalNo,
     } = this.state;
@@ -1162,7 +1200,7 @@ class App extends Component<{}, State> {
           useWindowCenter: newWindowCenter,
           useWindowWidth: newWindowWidth,
         });
-        if (ifShowSagittalCorona) {
+        if (ifShowSagittalCoronal) {
           this.buildSagittalView(
             this.currentSeries,
             currentSagittalNo - 1,
@@ -1260,7 +1298,7 @@ class App extends Component<{}, State> {
       hasDICOMExtension,
       useWindowWidth,
       useWindowCenter,
-      ifShowSagittalCorona,
+      ifShowSagittalCoronal,
       currentSagittalNo,
       totalSagittalFrames,
       currentCoronaNo,
@@ -1505,11 +1543,11 @@ class App extends Component<{}, State> {
                   />
                 </div>
 
-                {ifShowSagittalCorona ? (
+                {ifShowSagittalCoronal ? (
                   <>
                     <div>
                       <canvas
-                        // onMouseDown={this.onMouseCanvasDown}
+                        onMouseDown={this.onMouseCanvasDown}
                         // onMouseUp={this.onMouseUp0}
                         // onScroll={this.onMouseMove}
                         ref={this.myCanvasRefSagittal}
@@ -1520,7 +1558,7 @@ class App extends Component<{}, State> {
                     </div>
                     <div>
                       <canvas
-                        // onMouseDown={this.onMouseCanvasDown}
+                        onMouseDown={this.onMouseCanvasDown}
                         // onMouseUp={this.onMouseUp0}
                         // onScroll={this.onMouseMove}
                         ref={this.myCanvasRefCorona}
