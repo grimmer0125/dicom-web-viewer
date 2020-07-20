@@ -370,6 +370,8 @@ class App extends Component<{}, State> {
       rawDataWidth?: number;
       rawDataHeight?: number;
       extraHeightScale?: number;
+      extraWidthScale?: number;
+
       imageData?: {
         // only for axial view
         max?: number;
@@ -392,6 +394,7 @@ class App extends Component<{}, State> {
       rawDataWidth,
       rawDataHeight,
       extraHeightScale,
+      extraWidthScale,
       imageData,
     } = arg;
     console.log(`switch to ${frameIndex} Frame`);
@@ -593,7 +596,7 @@ class App extends Component<{}, State> {
     ctx.putImageData(imgData, 0, 0);
 
     let scale = 1;
-    if (!extraHeightScale) {
+    if (!extraHeightScale || !extraWidthScale) {
       scale = this.resizeTotFit(rawDataWidth, rawDataHeight);
     }
     //  else if (canvasRef === this.myCanvasRefSagittal) {
@@ -610,8 +613,10 @@ class App extends Component<{}, State> {
     c2.width = rawDataWidth / scale;
     c2.height = rawDataHeight / scale;
     if (extraHeightScale) {
-      console.log("extraHeightScale:", extraHeightScale);
       c2.height = c2.height * extraHeightScale;
+    }
+    if (extraWidthScale) {
+      c2.width = c2.width * extraWidthScale;
     }
     const ctx2 = c2.getContext("2d");
     ctx2.drawImage(c, 0, 0, c2.width, c2.height);
@@ -947,11 +952,12 @@ class App extends Component<{}, State> {
       // 6. x enable changing windowCenter & windowWidth? onMouseMove/
       // 15.x [todo]!! add handleNormalizeModeChange(switch show mode) on sagittal/coronal ???
       // 17.x 這個要跟 global max/min mode 一起做
-      // 4. mm scale ????? 要 pass. 再乘上原本的 scale<
-      // 13. [todo] test switchImage/onKeyDown x switchFrame
+      // 4. *mm scale ????? 要 pass. 再乘上原本的 scale<
+      // 13. *[todo] test switchImage/onKeyDown x switchFrame
       // 8. x 應該不能每個 frame 都用其極值 normalize, 要嘛統一用 windowCenter, 如果沒有就用原本的值
       // 12. [todo] test http case
       // 11. [todo] show 軸的字
+      // 18. switch showSagittal mode !!!!
       // 9. *axial view 也存著全部的 rawData ???? yes
       // 10. p.s. 不處理 多張同時又是 multi-frame 的 case
 
@@ -1006,12 +1012,16 @@ class App extends Component<{}, State> {
     const spaceH = spacing[1]; // shoudl equal to spaceW
     const sliceThickness = images[0].getSliceThickness();
 
+    let scale = 1;
+    scale = this.resizeTotFit(w, h);
+
     this.renderFrame({
       canvasRef: this.myCanvasRefSagittal,
       rawData,
       rawDataWidth: h,
       rawDataHeight: n_slice,
-      extraHeightScale: sliceThickness / spaceH,
+      extraHeightScale: sliceThickness / spaceH / scale,
+      extraWidthScale: 1 / scale,
       useWindowCenter,
       useWindowWidth,
       currNormalizeMode,
@@ -1057,12 +1067,16 @@ class App extends Component<{}, State> {
     const spaceH = spacing[1]; // shoudl equal to spaceW
     const sliceThickness = images[0].getSliceThickness();
 
+    let scale = 1;
+    scale = this.resizeTotFit(w, h);
+
     this.renderFrame({
       canvasRef: this.myCanvasRefCorona,
       rawData,
       rawDataWidth: w,
       rawDataHeight: n_slice,
-      extraHeightScale: sliceThickness / spaceW,
+      extraHeightScale: sliceThickness / spaceW / scale,
+      extraWidthScale: 1 / scale,
       useWindowCenter,
       useWindowWidth,
       currNormalizeMode,
