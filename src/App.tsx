@@ -666,6 +666,13 @@ class App extends Component<{}, State> {
     this.setState({
       ...initialImageState,
     });
+    const { ifShowSagittalCorona } = this.state;
+    if (!ifShowSagittalCorona) {
+      this.setState({
+        useWindowCenter: 0,
+        useWindowWidth: -1,
+      });
+    }
 
     if (
       name.toLowerCase().endsWith(".dcm") === false &&
