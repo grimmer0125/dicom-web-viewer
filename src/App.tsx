@@ -249,8 +249,8 @@ class App extends Component<{}, State> {
     // }
     const newMode = value as number;
     this.setState({
-      useWindowWidth: -1,
       useWindowCenter: 0,
+      useWindowWidth: -1,
       currNormalizeMode: newMode,
     });
 
@@ -267,45 +267,58 @@ class App extends Component<{}, State> {
     }
   };
 
-  renderImage = (buffer: any) => {
-    console.log("renderImage bytelength:", buffer.byteLength);
-    if (buffer) {
-      // daikon.Parser.verbose = true;
-      let image;
-      let numFrames;
+  renderImage = (
+    buffer: any,
+    daikonImage?: any,
+    imageData?: any,
+    useWindowCenter?: number,
+    useWindowWidth?: number
+  ) => {
+    // console.log("renderImage bytelength:", buffer.byteLength);
+    // daikon.Parser.verbose = true;
+    let image;
+    let numFrames;
+    if (!daikonImage) {
       try {
         image = daikon.Series.parseImage(new DataView(buffer));
-        numFrames = image.getNumberOfFrames();
       } catch (e) {
         console.log("parse dicom error:", e);
       }
-      if (numFrames > 1) {
-        // console.log("frames:", numFrames);
-        const multiFrameInfo = `It's multi-frame file (n=${numFrames})`;
-
-        this.setState({
-          multiFrameInfo,
-        });
-      } else {
-        this.setState({
-          multiFrameInfo: "",
-        });
-      }
-      this.setState({
-        frameIndexes: Array.from(
-          {
-            length: numFrames,
-          },
-          (v, k) => ({
-            text: k,
-            value: k,
-          })
-        ),
-        currFrameIndex: 0,
-      });
-      this.currentImage = image;
-      this.renderFrame({ image: this.currentImage, frameIndex: 0 });
+    } else {
+      image = daikonImage;
     }
+
+    numFrames = image.getNumberOfFrames();
+
+    if (numFrames > 1) {
+      // console.log("frames:", numFrames);
+      const multiFrameInfo = `It's multi-frame file (n=${numFrames})`;
+
+      this.setState({
+        multiFrameInfo,
+      });
+    }
+    this.setState({
+      frameIndexes: Array.from(
+        {
+          length: numFrames,
+        },
+        (v, k) => ({
+          text: k,
+          value: k,
+        })
+      ),
+      currFrameIndex: 0,
+    });
+    this.currentImage = image;
+
+    this.renderFrame({
+      image: this.currentImage,
+      frameIndex: 0,
+      imageData,
+      useWindowCenter,
+      useWindowWidth,
+    });
   };
 
   renderFrame = (
@@ -320,6 +333,14 @@ class App extends Component<{}, State> {
       rawDataWidth?: number;
       rawDataHeight?: number;
       extraHeightScale?: number;
+      imageData?: {
+        // only for axial view
+        max?: number;
+        min?: number;
+        numCols?: number;
+        numRows?: number;
+        data?: number[];
+      };
     }
     // ifWindowCenterMode?: boolean
   ) => {
@@ -334,6 +355,7 @@ class App extends Component<{}, State> {
       rawDataWidth,
       rawDataHeight,
       extraHeightScale,
+      imageData,
     } = arg;
     console.log(`switch to ${frameIndex} Frame`);
 
@@ -345,19 +367,19 @@ class App extends Component<{}, State> {
     let storeMin;
 
     if (!canvasRef || canvasRef === this.myCanvasRef) {
-      const seriesID = image.getSeriesId();
-      const a1 = image.getImageDirections(); // [100010]
-      const a2 = image.getImagePosition(); //[-155, -170, -189.75]
-      const a3 = image.getSeriesNumber(); //5
-      const a4 = image.getPixelSpacing(); //[0.66, 0.66] mm
-      const a5 = image.getSliceThickness(); //5 mm
-      const a6 = image.getAcquiredSliceDirection(); //2
+      // const seriesID = image.getSeriesId();
+      // const a1 = image.getImageDirections(); // [100010]
+      // const a2 = image.getImagePosition(); //[-155, -170, -189.75]
+      // const a3 = image.getSeriesNumber(); //5
+      // const a4 = image.getPixelSpacing(); //[0.66, 0.66] mm
+      // const a5 = image.getSliceThickness(); //5 mm
+      // const a6 = image.getAcquiredSliceDirection(); //2
       // daikon.Image.SLICE_DIRECTION_UNKNOWN = -1;
       // daikon.Image.SLICE_DIRECTION_AXIAL = 2;
       // daikon.Image.SLICE_DIRECTION_CORONAL = 1;
       // daikon.Image.SLICE_DIRECTION_SAGITTAL = 0;
       // daikon.Image.SLICE_DIRECTION_OBLIQUE = 3;
-      const a7 = image.getSliceLocation(); //-189.75
+      // const a7 = image.getSliceLocation(); //-189.75
 
       // BUG:
       // fetchFile (file://) case will need longer time to getPhotometricInterpretation after using a while
@@ -380,13 +402,18 @@ class App extends Component<{}, State> {
       // The new function will handle things like byte order, number of bytes per voxel, datatype, data scales, etc.
       // It returns an array of floating point values. So far this is only working for plain intensity data, not RGB.
       let obj;
-      try {
-        // BUG: latest daikon will throw a exception when calliing getInterpretedData for palette case
-        obj = image.getInterpretedData(false, true, frameIndex); // obj.data: float32array
-      } catch (e) {
-        console.log("read dicom InterpretedData error:", e);
-        return;
+      if (!imageData) {
+        try {
+          // BUG: latest daikon will throw a exception when calliing getInterpretedData for palette case
+          obj = image.getInterpretedData(false, true, frameIndex); // obj.data: float32array
+        } catch (e) {
+          console.log("read dicom InterpretedData error:", e);
+          return;
+        }
+      } else {
+        obj = imageData;
       }
+
       storeMax = obj.max;
       storeMin = obj.min;
       rawData = obj.data as number[];
@@ -462,27 +489,30 @@ class App extends Component<{}, State> {
     const { data } = imgData; // .data; // width x height x 4 (RGBA), Uint8ClampedArray
 
     if (!ifRGB) {
-      // Create array view
-      // const array = new Uint8ClampedArray(rawData.length);
-      if (max && min) {
-        const delta = max - min;
-        for (let i = 0; i < rawData.length; i += 1) {
+      for (let i = 0, k = 0; i < data.byteLength; i += 4, k += 1) {
+        let value = rawData[k];
+
+        // Create array view
+        // const array = new Uint8ClampedArray(rawData.length);
+        if (max && min) {
+          const delta = max - min;
+          // for (let i = 0; i < rawData.length; i += 1) {
           // truncate
           if (min !== storeMax || max !== storeMin) {
-            if (rawData[i] > max) {
-              rawData[i] = max;
-            } else if (rawData[i] < min) {
-              rawData[i] = min;
+            if (value > max) {
+              value = max;
+            } else if (value < min) {
+              value = min;
             }
           }
           // normalization
-          rawData[i] = ((rawData[i] - min) * 255) / delta;
+          value = ((value - min) * 255) / delta;
+          // }
         }
-      }
-      for (let i = 0, k = 0; i < data.byteLength; i += 4, k += 1) {
-        data[i] = rawData[k];
-        data[i + 1] = rawData[k];
-        data[i + 2] = rawData[k];
+
+        data[i] = value;
+        data[i + 1] = value;
+        data[i + 2] = value;
         data[i + 3] = 255;
       }
     } else if (rgbMode === 0) {
@@ -549,7 +579,7 @@ class App extends Component<{}, State> {
     ctx2.drawImage(c, 0, 0, c2.width, c2.height);
   };
 
-  onOpenFileURLs(fileURLStr: string) {
+  async onOpenFileURLs(fileURLStr: string) {
     const files = fileURLStr.split("file://");
     files.sort((a, b) => {
       return a.localeCompare(b);
@@ -561,14 +591,16 @@ class App extends Component<{}, State> {
         this.files.push(`file://${file}`);
       }
     });
-    this.setState({
-      totalFiles: this.files.length,
-      currFileNo: 1,
-    });
-    this.fetchFile(this.files[0]);
+
     const { ifShowSagittalCorona } = this.state;
     if (ifShowSagittalCorona) {
+      await this.loadSeriesFilesToRender(this.files);
     } else {
+      this.setState({
+        totalFiles: this.files.length,
+        currFileNo: 1,
+      });
+      this.fetchFile(this.files[0]);
     }
   }
 
@@ -590,13 +622,21 @@ class App extends Component<{}, State> {
       currFileNo: value,
     });
 
-    const newFile = this.files[value - 1];
-    console.log("switch to image:", value, newFile);
-
-    if (!this.isOnlineMode) {
-      this.loadFile(newFile);
+    const ifShowSagittalCorona = this.state;
+    if (ifShowSagittalCorona) {
+      this.buildAxialView(
+        this.currentSeries,
+        this.currentSeriesImageObjects,
+        value - 1
+      );
     } else {
-      this.fetchFile(newFile);
+      const newFile = this.files[value - 1];
+      console.log("switch to image:", value, newFile);
+      if (!this.isOnlineMode) {
+        this.loadFile(newFile);
+      } else {
+        this.fetchFile(newFile);
+      }
     }
   };
 
@@ -605,12 +645,7 @@ class App extends Component<{}, State> {
       currentSagittalNo: value,
     });
 
-    if (!this.isOnlineMode) {
-      this.buildSagittalView(this.currentSeries, value - 1);
-      // this.loadFile(newFile);
-    } else {
-      // this.fetchFile(newFile);
-    }
+    this.buildSagittalView(this.currentSeries, value - 1);
   };
 
   switchCorona = (value: number) => {
@@ -618,12 +653,7 @@ class App extends Component<{}, State> {
       currentCoronaNo: value,
     });
 
-    if (!this.isOnlineMode) {
-      this.buildCoronalView(this.currentSeries, value - 1);
-      // this.loadFile(newFile);
-    } else {
-      // this.fetchFile(newFile);
-    }
+    this.buildCoronalView(this.currentSeries, value - 1);
   };
 
   checkDicomNameAndResetState(name: string) {
@@ -633,6 +663,9 @@ class App extends Component<{}, State> {
       const ctx2 = c2.getContext("2d");
       ctx2.clearRect(0, 0, c2.width, c2.height);
     }
+    this.setState({
+      ...initialImageState,
+    });
 
     if (
       name.toLowerCase().endsWith(".dcm") === false &&
@@ -641,16 +674,11 @@ class App extends Component<{}, State> {
       console.log("not dicom file");
 
       this.setState({
-        ...initialImageState,
         hasDICOMExtension: false,
       });
 
       return false;
     }
-
-    this.setState({
-      ...initialImageState,
-    });
 
     return true;
   }
@@ -669,6 +697,188 @@ class App extends Component<{}, State> {
     this.renderImage(buffer);
   }
 
+  async loadSeriesFilesToRender(files: string[] | any[]) {
+    const promiseList: any[] = [];
+    this.files.forEach((file, index) => {
+      if (typeof file === "string") {
+        if (index === 0) {
+          // ~ loadFile/fetchFile
+          this.setState({
+            currFilePath: decodeURI(file),
+          });
+          if (!this.checkDicomNameAndResetState(file)) {
+          }
+        }
+        promiseList.push(fetchDicomAsync(file));
+      } else {
+        if (index === 0) {
+          this.setState({
+            currFilePath: file.name,
+          });
+          if (!this.checkDicomNameAndResetState(file.name)) {
+          }
+        }
+        promiseList.push(loadDicomAsync(file));
+      }
+    });
+
+    const bufferList = await Promise.all(promiseList);
+    // console.log("bufferList:", bufferList);
+    const series = new daikon.Series();
+
+    for (const buffer of bufferList) {
+      const image = daikon.Series.parseImage(new DataView(buffer as any));
+      // console.log(image.getSliceLocation());
+
+      const orientationArray = image.getImageDirections(); //[1,0,0,0,1,0] Tag	(0020,0037)
+      const daikonOrientation = image.getOrientation(); //XYZ--+
+      console.log(
+        "orientationArray:",
+        orientationArray,
+        ";daikonOrientation:",
+        daikonOrientation
+      );
+
+      if (image === null) {
+        console.error(daikon.Series.parserError);
+      } else if (image.hasPixelData()) {
+        // Anatomical Orientation Type Attribute
+        // https://dicom.innolitics.com/ciods/12-lead-ecg/general-series/00102210
+        // Patient Orientation:
+        // https://dicom.innolitics.com/ciods/cr-image/general-image/00200020
+
+        // axial DICOM looks like a mirror image !! if its 0020,0037 is 1,0,0,0,1.0
+        // https://stackoverflow.com/questions/34782409/understanding-dicom-image-attributes-to-get-axial-coronal-sagittal-cuts/34783893
+        // https://dicom.innolitics.com/ciods/ct-image/image-plane/00200037
+
+        // https://www.slicer.org/wiki/Coordinate_systems
+        if (image.getAcquiredSliceDirection() !== 2) {
+          console.log("not axial dicom:", image.getAcquiredSliceDirection());
+          continue;
+        }
+
+        if (series.images.length === 0) {
+          series.addImage(image);
+        }
+
+        // if it's part of the same series, add it
+        else if (image.getSeriesId() === series.images[0].getSeriesId()) {
+          if (
+            image.getSliceThickness() === series.images[0].getSliceThickness()
+          ) {
+            series.addImage(image);
+          } else {
+            console.warn("not same slicethickness");
+          }
+        } else {
+          console.warn("not same seriesID(defined by daikon)");
+        }
+      }
+    }
+    // order the image files, determines number of frames, etc.
+
+    if (series.images.length > 0) {
+      series.buildSeries();
+      series.images.reverse(); //since buildSeries will sort by z increase
+      this.currentSeries = series;
+      this.currentSeriesImageObjects = [];
+      let useWindowCenter = series.images[0].getWindowCenter() as number;
+      let useWindowWidth = series.images[0].getWindowWidth() as number;
+      let globalMax: number | undefined;
+      let globalMin: number | undefined;
+      series.images.forEach((image: any) => {
+        // TODO: handle exception case
+        const obj = image.getInterpretedData(false, true, 0); // obj.data: float32array
+        let max = obj.max;
+        let min = obj.min;
+        this.currentSeriesImageObjects.push(obj);
+        if (useWindowCenter === null) {
+          if (globalMax === undefined || max > globalMax) {
+            globalMax = max;
+          }
+          if (globalMin === undefined || min < globalMin) {
+            globalMin = min;
+          }
+        }
+      });
+      if (globalMax === undefined || globalMin === undefined) {
+        this.setState({
+          useWindowCenter,
+          useWindowWidth,
+        });
+      } else {
+        this.setState({
+          useWindowCenter: Math.floor((globalMax + globalMin) / 2),
+          useWindowWidth: globalMax - globalMin,
+        });
+      }
+
+      const w = series.images[0].getCols();
+      const firstSagittal = Math.floor(w / 2);
+      this.setState({
+        totalSagittalFrames: w, //this.files.length,
+        currentSagittalNo: firstSagittal + 1,
+      });
+      // build SAGITTAL
+      this.buildSagittalView(
+        series,
+        firstSagittal,
+        useWindowCenter,
+        useWindowWidth
+      );
+      // build CORONAL views
+      const h = series.images[0].getRows();
+      const firstCoronal = Math.floor(h / 2);
+      this.setState({
+        totalCoronaFrames: h, //this.files.length,
+        currentCoronaNo: firstCoronal + 1,
+      });
+      this.buildCoronalView(
+        series,
+        firstCoronal,
+        useWindowCenter,
+        useWindowWidth
+      );
+
+      const firstImageNo = Math.floor(series.images.length / 2);
+      this.setState({
+        totalFiles: this.files.length,
+        currFileNo: firstImageNo + 1,
+      });
+      this.buildAxialView(
+        series,
+        this.currentSeriesImageObjects,
+        firstImageNo,
+        useWindowCenter,
+        useWindowWidth
+      );
+      // NOTE: not support multi-frame or not default axial view now
+      // for (const image of images) {
+      //   console.log(image.getSliceLocation());
+      // }
+    } else {
+      console.warn("no series image");
+    }
+  }
+
+  buildAxialView(
+    series: any,
+    seriesObjects: any[],
+    i_image: number,
+    useWindowCenter?: number,
+    useWindowWidth?: number
+  ) {
+    const daikonImage = series.images[i_image];
+    const imageData = seriesObjects[i_image];
+    this.renderImage(
+      null,
+      daikonImage,
+      imageData,
+      useWindowCenter,
+      useWindowWidth
+    );
+  }
+
   onDropFiles = async (acceptedFiles: any[]) => {
     if (acceptedFiles.length > 0) {
       acceptedFiles.sort((a, b) => {
@@ -680,125 +890,43 @@ class App extends Component<{}, State> {
         totalFiles: this.files.length,
         currFileNo: 1,
       });
-      this.loadFile(this.files[0]);
       const { ifShowSagittalCorona } = this.state;
       // TODO:
       // 1. 如果每一張的 window center, width 不一樣呢?
       // 很難處理. 那就把 default 中間的 windowWidth, windowCenter 當做 useWindowWidth/center 好了
       // 2. *pass max/min<-??, width/height
-      // 3. make another 2 view raw data
-      // 4. scale ????? 要 pass. 再乘上原本的 scale<
-      // 5. switch frames in 2 view,
-      // 6. enable changing windowCenter & windowWidth?
-      // 7. switch show mode
-      // 8. 應該不能每個 frame 都用其極值 normalize, 要嘛統一用 windowCenter, 如果沒有就用原本的值
-      // 9. *axial view 也存著全部的 rawData ?
-      // 10. 不處理 多張同時又是 multi-frame 的 case
+      // 3. x make another 2 view raw data
+      // 5. x switch frames in 2 view,
+      // x mm 6. enable changing windowCenter & windowWidth? onMouseMove/
+      // mm 15. add handleNormalizeModeChange(switch show mode) on sagittal/coronal ???
+      // mm 4. scale ????? 要 pass. 再乘上原本的 scale<
+      // 13. [todo] test switchImage/onKeyDown x switchFrame
+      // 8. x 應該不能每個 frame 都用其極值 normalize, 要嘛統一用 windowCenter, 如果沒有就用原本的值
+      // 12. [todo] test http case
+      // 11. [todo] show 軸的字
+      // 9. *axial view 也存著全部的 rawData ???? yes
+      // 10. p.s. 不處理 多張同時又是 multi-frame 的 case
 
       if (ifShowSagittalCorona) {
-        const promiseList = [];
-        for (const file of this.files) {
-          promiseList.push(loadDicomAsync(file));
-        }
-        const bufferList = await Promise.all(promiseList);
-        // console.log("bufferList:", bufferList);
-        const series = new daikon.Series();
-
-        for (const buffer of bufferList) {
-          const image = daikon.Series.parseImage(new DataView(buffer as any));
-          // console.log(image.getSliceLocation());
-
-          const orientationArray = image.getImageDirections(); //[1,0,0,0,1,0] Tag	(0020,0037)
-          const daikonOrientation = image.getOrientation(); //XYZ--+
-          console.log(
-            "orientationArray:",
-            orientationArray,
-            ";daikonOrientation:",
-            daikonOrientation
-          );
-
-          if (image === null) {
-            console.error(daikon.Series.parserError);
-          } else if (image.hasPixelData()) {
-            // Anatomical Orientation Type Attribute
-            // https://dicom.innolitics.com/ciods/12-lead-ecg/general-series/00102210
-            // Patient Orientation:
-            // https://dicom.innolitics.com/ciods/cr-image/general-image/00200020
-
-            // axial DICOM looks like a mirror image !! if its 0020,0037 is 1,0,0,0,1.0
-            // https://stackoverflow.com/questions/34782409/understanding-dicom-image-attributes-to-get-axial-coronal-sagittal-cuts/34783893
-            // https://dicom.innolitics.com/ciods/ct-image/image-plane/00200037
-
-            // https://www.slicer.org/wiki/Coordinate_systems
-            if (image.getAcquiredSliceDirection() !== 2) {
-              console.log(
-                "not axial dicom:",
-                image.getAcquiredSliceDirection()
-              );
-              continue;
-            }
-
-            if (series.images.length === 0) {
-              series.addImage(image);
-            }
-
-            // if it's part of the same series, add it
-            else if (image.getSeriesId() === series.images[0].getSeriesId()) {
-              if (
-                image.getSliceThickness() ===
-                series.images[0].getSliceThickness()
-              ) {
-                series.addImage(image);
-              } else {
-                console.warn("not same slicethickness");
-              }
-            } else {
-              console.warn("not same seriesID(defined by daikon)");
-            }
-          }
-        }
-        // order the image files, determines number of frames, etc.
-
-        if (series.images.length > 0) {
-          series.buildSeries();
-          series.images.reverse(); //since buildSeries will sort by z increase
-          this.currentSeries = series;
-          this.currentSeriesImageObjects = [];
-          series.images.forEach((image: any) => {
-            const obj = image.getInterpretedData(false, true, 0); // obj.data: float32array
-            this.currentSeriesImageObjects.push(obj);
-          });
-
-          const w = series.images[0].getCols();
-          this.setState({
-            totalSagittalFrames: w, //this.files.length,
-            currentSagittalNo: 1,
-          });
-          // build SAGITTAL
-          this.buildSagittalView(series, 0);
-          // build CORONAL views
-          const h = series.images[0].getRows();
-          this.setState({
-            totalCoronaFrames: h, //this.files.length,
-            currentCoronaNo: 1,
-          });
-          this.buildCoronalView(series, 0);
-
-          // NOTE: not support multi-frame or not default axial view now
-          // for (const image of images) {
-          //   console.log(image.getSliceLocation());
-          // }
-        } else {
-          console.warn("no series image");
-        }
+        await this.loadSeriesFilesToRender(this.files);
       } else {
         console.log("ifShowSagittalCorona = false");
+        this.setState({
+          totalFiles: this.files.length,
+          currFileNo: 1,
+        });
+        this.loadFile(this.files[0]);
       }
     }
   };
 
   // toward left hand
-  buildSagittalView(series: any, j_sagittal: number) {
+  buildSagittalView(
+    series: any,
+    j_sagittal: number,
+    useWindowCenter?: number,
+    useWindowWidth?: number
+  ) {
     const images = series.images;
     // console.log("series images:", images);
     const w = images[0].getCols();
@@ -835,13 +963,18 @@ class App extends Component<{}, State> {
       rawDataWidth: h,
       rawDataHeight: n_slice,
       extraHeightScale: sliceThickness / spaceH,
-      useWindowCenter: -650,
-      useWindowWidth: 1600,
+      useWindowCenter,
+      useWindowWidth,
     });
   }
 
   // toward posterior side of the patient.
-  buildCoronalView(series: any, k_corona: number) {
+  buildCoronalView(
+    series: any,
+    k_corona: number,
+    useWindowCenter?: number,
+    useWindowWidth?: number
+  ) {
     const images = series.images;
     // console.log("series images:", images);
     const w = images[0].getCols();
@@ -879,8 +1012,8 @@ class App extends Component<{}, State> {
       rawDataWidth: w,
       rawDataHeight: n_slice,
       extraHeightScale: sliceThickness / spaceW,
-      useWindowCenter: -650,
-      useWindowWidth: 1600,
+      useWindowCenter,
+      useWindowWidth,
     });
   }
 
@@ -975,6 +1108,9 @@ class App extends Component<{}, State> {
       useWindowCenter,
       currFrameIndex,
       currNormalizeMode,
+      ifShowSagittalCorona,
+      currentCoronaNo,
+      currentSagittalNo,
     } = this.state;
     if (isValidMouseDown) {
       const {
@@ -1012,16 +1148,27 @@ class App extends Component<{}, State> {
           useWindowCenter: newWindowCenter,
           useWindowWidth: newWindowWidth,
         });
-        this.renderFrame(
-          {
-            image: this.currentImage,
-            frameIndex: currFrameIndex,
-            currNormalizeMode: currNormalizeMode,
-            useWindowWidth: newWindowWidth,
-            useWindowCenter: newWindowCenter,
-          }
-          // useWindowCenter //useWindowCenter
-        );
+        this.renderFrame({
+          image: this.currentImage,
+          frameIndex: currFrameIndex,
+          currNormalizeMode: currNormalizeMode,
+          useWindowCenter: newWindowCenter,
+          useWindowWidth: newWindowWidth,
+        });
+        if (ifShowSagittalCorona) {
+          this.buildSagittalView(
+            this.currentSeries,
+            currentSagittalNo - 1,
+            newWindowCenter,
+            newWindowWidth
+          );
+          this.buildCoronalView(
+            this.currentSeries,
+            currentCoronaNo - 1,
+            newWindowCenter,
+            newWindowWidth
+          );
+        }
       }
 
       // max/min mode
