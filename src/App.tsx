@@ -720,12 +720,12 @@ class App extends Component<{}, State> {
         useWindowWidth: -1,
       });
     }
-
+    // "file:///Users/grimmer/NCKUH_lung/.DS_Store"
     if (
       name.toLowerCase().endsWith(".dcm") === false &&
       name.toLowerCase().endsWith(".dicom") === false
     ) {
-      console.log("not dicom file");
+      console.log("not dicom file:", name);
 
       this.setState({
         hasDICOMExtension: false,
@@ -754,6 +754,10 @@ class App extends Component<{}, State> {
   async loadSeriesFilesToRender(files: string[] | any[]) {
     const promiseList: any[] = [];
     this.files.forEach((file, index) => {
+      // TODO: filter  invalid dicom, e.g. .DS file
+      //   name.toLowerCase().endsWith(".dcm") === false &&
+      //   name.toLowerCase().endsWith(".dicom") === false
+      // ) {
       if (typeof file === "string") {
         if (index === 0) {
           // ~ loadFile/fetchFile
@@ -942,10 +946,10 @@ class App extends Component<{}, State> {
       });
       this.isOnlineMode = false;
       this.files = acceptedFiles;
-      this.setState({
-        totalFiles: this.files.length,
-        currFileNo: 1,
-      });
+      // this.setState({
+      //   totalFiles: this.files.length,
+      //   currFileNo: 1,
+      // });
       const { ifShowSagittalCoronal } = this.state;
       // TODO:
       // 1. 如果每一張的 window center, width 不一樣呢?
