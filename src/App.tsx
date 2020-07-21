@@ -753,23 +753,39 @@ class App extends Component<{}, State> {
 
   async loadSeriesFilesToRender(files: string[] | any[]) {
     const promiseList: any[] = [];
+    let firstFile = "";
+    const fileList: any[] = [];
     this.files.forEach((file, index) => {
       // TODO: filter  invalid dicom, e.g. .DS file
-      //   name.toLowerCase().endsWith(".dcm") === false &&
-      //   name.toLowerCase().endsWith(".dicom") === false
-      // ) {
+
       if (typeof file === "string") {
-        if (index === 0) {
+        if (
+          file.toLowerCase().endsWith(".dcm") === false &&
+          file.toLowerCase().endsWith(".dicom") === false
+        ) {
+          return;
+        }
+        fileList.push(file);
+        if (!firstFile) {
+          firstFile = decodeURI(file);
           // ~ loadFile/fetchFile
           this.setState({
-            currFilePath: decodeURI(file),
+            currFilePath: firstFile,
           });
           if (!this.checkDicomNameAndResetState(file)) {
           }
         }
         promiseList.push(fetchDicomAsync(file));
       } else {
-        if (index === 0) {
+        if (
+          file.name.toLowerCase().endsWith(".dcm") === false &&
+          file.name.toLowerCase().endsWith(".dicom") === false
+        ) {
+          return;
+        }
+        fileList.push(file);
+        if (!firstFile) {
+          firstFile = file.name;
           this.setState({
             currFilePath: file.name,
           });
@@ -779,6 +795,7 @@ class App extends Component<{}, State> {
         promiseList.push(loadDicomAsync(file));
       }
     });
+    this.files = fileList;
 
     const bufferList = await Promise.all(promiseList);
     // console.log("bufferList:", bufferList);
@@ -963,7 +980,7 @@ class App extends Component<{}, State> {
       // 4. *mm scale ????? 要 pass. 再乘上原本的 scale<
       // 13. *[todo] test switchImage/onKeyDown x switchFrame
       // 8. x 應該不能每個 frame 都用其極值 normalize, 要嘛統一用 windowCenter, 如果沒有就用原本的值
-      // 12. [todo] test http case
+      // 12.x  [todo] test http case
       // 11. [todo] show 軸的字
       // x 18. switch showSagittal mode !!!!
       // 9. *axial view 也存著全部的 rawData ???? yes
