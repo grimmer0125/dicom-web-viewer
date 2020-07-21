@@ -7,6 +7,7 @@ import {
   Checkbox,
   CheckboxProps,
   DropdownProps,
+  Radio,
 } from "semantic-ui-react";
 
 import Dropzone from "react-dropzone";
@@ -122,6 +123,7 @@ type State = {
   totalSagittalFrames: number;
   currentCoronaNo: number;
   totalCoronaFrames: number;
+  seriesMode: string;
 };
 
 interface NormalizationProps {
@@ -174,9 +176,10 @@ class App extends Component<{}, State> {
       currNormalizeMode: NormalizationMode.WindowCenter,
       ifWindowCenterMode: true,
       currFilePath: "",
-      ifShowSagittalCoronal: true,
+      ifShowSagittalCoronal: false,
       useWindowCenter: 0,
       useWindowWidth: -1,
+      seriesMode: "notSeriesMode",
 
       // multiFrameInfo: '',
       // currFrameIndex: 0,
@@ -665,7 +668,8 @@ class App extends Component<{}, State> {
       currFileNo: value,
     });
 
-    const ifShowSagittalCoronal = this.state;
+    const { ifShowSagittalCoronal } = this.state;
+    console.log("ifShowSagittalCoronal:", ifShowSagittalCoronal);
     if (ifShowSagittalCoronal) {
       this.buildAxialView(
         this.currentSeries,
@@ -957,7 +961,7 @@ class App extends Component<{}, State> {
       // 8. x 應該不能每個 frame 都用其極值 normalize, 要嘛統一用 windowCenter, 如果沒有就用原本的值
       // 12. [todo] test http case
       // 11. [todo] show 軸的字
-      // 18. switch showSagittal mode !!!!
+      // x 18. switch showSagittal mode !!!!
       // 9. *axial view 也存著全部的 rawData ???? yes
       // 10. p.s. 不處理 多張同時又是 multi-frame 的 case
 
@@ -1298,6 +1302,37 @@ class App extends Component<{}, State> {
     };
   }
 
+  handleSeriesModeChange = async (e: any, obj: any) => {
+    // e: React.SyntheticEvent<HTMLElement, Event>,
+    // obj: DropdownProps
+    const { value } = obj;
+    console.log("mode:", value);
+    const { seriesMode } = this.state;
+    if (seriesMode === "seriesMode") {
+      this.setState({
+        seriesMode: "notSeriesMode",
+        ifShowSagittalCoronal: false,
+      });
+      if (this.files.length > 0) {
+        console.log("ifShowSagittalCoronal = false");
+        this.setState({
+          totalFiles: this.files.length,
+          currFileNo: 1,
+        });
+        if (this.isOnlineMode) {
+          this.fetchFile(this.files[0]);
+        } else {
+          this.loadFile(this.files[0]);
+        }
+      }
+    } else if (seriesMode === "notSeriesMode") {
+      this.setState({ seriesMode: "seriesMode", ifShowSagittalCoronal: true });
+      if (this.files.length > 0) {
+        await this.loadSeriesFilesToRender(this.files);
+      }
+    }
+  };
+
   render() {
     const {
       currFilePath,
@@ -1324,6 +1359,7 @@ class App extends Component<{}, State> {
       totalSagittalFrames,
       currentCoronaNo,
       totalCoronaFrames,
+      seriesMode,
     } = this.state;
     let info = "[meta]";
     info += ` modality:${modality};photometric:${photometric}`;
@@ -1471,6 +1507,13 @@ class App extends Component<{}, State> {
                       currNormalizeMode={currNormalizeMode}
                       onChange={this.handleNormalizeModeChange}
                     />
+                    <Radio
+                      toggle
+                      value={"seriesMode"}
+                      checked={seriesMode === "seriesMode"}
+                      onChange={this.handleSeriesModeChange}
+                    />
+                    {"  Enable Series mode"}
                   </div>
                 </div>
                 <div
@@ -1526,20 +1569,24 @@ class App extends Component<{}, State> {
                     max={totalFiles}
                     onChange={this.switchImage}
                   />
-                  <Slider
-                    value={currentSagittalNo}
-                    step={1}
-                    min={1}
-                    max={totalSagittalFrames}
-                    onChange={this.switchSagittal}
-                  />
-                  <Slider
-                    value={currentCoronaNo}
-                    step={1}
-                    min={1}
-                    max={totalSagittalFrames}
-                    onChange={this.switchCorona}
-                  />
+                  {ifShowSagittalCoronal ? (
+                    <>
+                      <Slider
+                        value={currentSagittalNo}
+                        step={1}
+                        min={1}
+                        max={totalSagittalFrames}
+                        onChange={this.switchSagittal}
+                      />
+                      <Slider
+                        value={currentCoronaNo}
+                        step={1}
+                        min={1}
+                        max={totalCoronaFrames}
+                        onChange={this.switchCorona}
+                      />
+                    </>
+                  ) : null}
                 </div>
               </div>
             ) : null}
