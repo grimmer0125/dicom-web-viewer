@@ -1595,29 +1595,41 @@ class App extends Component<{}, State> {
                   >
                     {`${currFilePath}. ${currFileNo}/${totalFiles}`}
                   </div>
-                  <Slider
-                    value={currFileNo}
-                    step={1}
-                    min={1}
-                    max={totalFiles}
-                    onChange={this.switchImage}
-                  />
+                  <div className="flex-container">
+                    <div>{"S"}</div>
+                    <Slider
+                      value={currFileNo}
+                      step={1}
+                      min={1}
+                      max={totalFiles}
+                      onChange={this.switchImage}
+                    />
+                    <div>I</div>
+                  </div>
                   {ifShowSagittalCoronal ? (
                     <>
-                      <Slider
-                        value={currentSagittalNo}
-                        step={1}
-                        min={1}
-                        max={totalSagittalFrames}
-                        onChange={this.switchSagittal}
-                      />
-                      <Slider
-                        value={currentCoronaNo}
-                        step={1}
-                        min={1}
-                        max={totalCoronaFrames}
-                        onChange={this.switchCorona}
-                      />
+                      <div className="flex-container">
+                        <div>R</div>
+                        <Slider
+                          value={currentSagittalNo}
+                          step={1}
+                          min={1}
+                          max={totalSagittalFrames}
+                          onChange={this.switchSagittal}
+                        />
+                        <div>L</div>
+                      </div>
+                      <div className="flex-container">
+                        <div>A</div>
+                        <Slider
+                          value={currentCoronaNo}
+                          step={1}
+                          min={1}
+                          max={totalCoronaFrames}
+                          onChange={this.switchCorona}
+                        />
+                        <div>P</div>
+                      </div>
                     </>
                   ) : null}
                 </div>
@@ -1632,41 +1644,99 @@ class App extends Component<{}, State> {
                   justifyContent: "center",
                 }}
               >
-                <div>
-                  <canvas
-                    onMouseDown={this.onMouseCanvasDown}
-                    // onMouseUp={this.onMouseUp0}
-                    // onScroll={this.onMouseMove}
-                    ref={this.myCanvasRef}
-                    width={500}
-                    height={500}
-                    style={{ backgroundColor: "black" }}
-                  />
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>A</div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div>R</div>
+                    <canvas
+                      onMouseDown={this.onMouseCanvasDown}
+                      // onMouseUp={this.onMouseUp0}
+                      // onScroll={this.onMouseMove}
+                      ref={this.myCanvasRef}
+                      width={MAX_WIDTH_SERIES_MODE}
+                      height={MAX_HEIGHT_SERIES_MODE}
+                      style={{ backgroundColor: "black" }}
+                    />
+                    <div>L</div>
+                  </div>
+                  <div>P</div>
                 </div>
 
                 {ifShowSagittalCoronal ? (
                   <>
-                    <div>
-                      <canvas
-                        onMouseDown={this.onMouseCanvasDown}
-                        // onMouseUp={this.onMouseUp0}
-                        // onScroll={this.onMouseMove}
-                        ref={this.myCanvasRefSagittal}
-                        width={500}
-                        height={500}
-                        style={{ backgroundColor: "yellow" }}
-                      />
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>S</div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div>A</div>
+                        <canvas
+                          onMouseDown={this.onMouseCanvasDown}
+                          // onMouseUp={this.onMouseUp0}
+                          // onScroll={this.onMouseMove}
+                          ref={this.myCanvasRefSagittal}
+                          width={MAX_WIDTH_SERIES_MODE}
+                          height={MAX_HEIGHT_SERIES_MODE}
+                          style={{ backgroundColor: "yellow" }}
+                        />
+                        <div>P</div>
+                      </div>
+                      <div>I</div>
                     </div>
-                    <div>
-                      <canvas
-                        onMouseDown={this.onMouseCanvasDown}
-                        // onMouseUp={this.onMouseUp0}
-                        // onScroll={this.onMouseMove}
-                        ref={this.myCanvasRefCorona}
-                        width={500}
-                        height={500}
-                        style={{ backgroundColor: "green" }}
-                      />
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "center",
+                        alignItems: "center",
+                      }}
+                    >
+                      <div>S</div>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                        }}
+                      >
+                        <div>R</div>
+
+                        <canvas
+                          onMouseDown={this.onMouseCanvasDown}
+                          // onMouseUp={this.onMouseUp0}
+                          // onScroll={this.onMouseMove}
+                          ref={this.myCanvasRefCorona}
+                          width={MAX_WIDTH_SERIES_MODE}
+                          height={MAX_HEIGHT_SERIES_MODE}
+                          style={{ backgroundColor: "green" }}
+                        />
+                        <div>L</div>
+                      </div>
+                      <div>I</div>
                     </div>
                   </>
                 ) : null}
