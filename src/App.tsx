@@ -969,7 +969,7 @@ class App extends Component<{}, State> {
       // });
       const { ifShowSagittalCoronal } = this.state;
       // TODO:
-      // 1. 如果每一張的 window center, width 不一樣呢?
+      // 1. x 如果每一張的 window center, width 不一樣呢?
       // 很難處理. 那就把 default 中間的 windowWidth, windowCenter 當做 useWindowWidth/center 好了
       // 2. *pass max/min<-??, width/height
       // 3. x make another 2 view raw data
@@ -981,10 +981,11 @@ class App extends Component<{}, State> {
       // 13. *[todo] test switchImage/onKeyDown x switchFrame
       // 8. x 應該不能每個 frame 都用其極值 normalize, 要嘛統一用 windowCenter, 如果沒有就用原本的值
       // 12.x  [todo] test http case
-      // 11. [todo] show 軸的字
       // x 18. switch showSagittal mode !!!!
       // 9. *axial view 也存著全部的 rawData ???? yes
       // 10. p.s. 不處理 多張同時又是 multi-frame 的 case
+      // 11. [todo] show 軸的字
+      // 18. [todo] fine tune UI
 
       if (ifShowSagittalCoronal) {
         await this.loadSeriesFilesToRender(this.files);
