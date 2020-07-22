@@ -156,6 +156,11 @@ function NormalizationComponent(props: NormalizationProps) {
   );
 }
 
+const MAX_WIDTH_SINGLE_MODE = 1280;
+const MAX_HEIGHT_SINGLE_MODE = 1000;
+const MAX_WIDTH_SERIES_MODE = 400;
+const MAX_HEIGHT_SERIES_MODE = 400;
+
 class App extends Component<{}, State> {
   myCanvasRef: React.RefObject<HTMLCanvasElement>;
   myCanvasRefSagittal: React.RefObject<HTMLCanvasElement>;
@@ -169,6 +174,8 @@ class App extends Component<{}, State> {
   clientY: number;
   seriesGlobalMax: number;
   seriesGlobalMin: number;
+  maxWidth = MAX_WIDTH_SINGLE_MODE;
+  maxHeight = MAX_HEIGHT_SINGLE_MODE;
 
   constructor() {
     super({});
@@ -1126,8 +1133,8 @@ class App extends Component<{}, State> {
   resizeTotFit(width: number, height: number) {
     let scale = 1;
     const size = {
-      maxWidth: 1280,
-      maxHeight: 1024,
+      maxWidth: this.maxWidth,
+      maxHeight: this.maxHeight,
     };
     if (width <= size.maxWidth && height <= size.maxHeight) {
       return scale;
@@ -1335,6 +1342,8 @@ class App extends Component<{}, State> {
         seriesMode: "notSeriesMode",
         ifShowSagittalCoronal: false,
       });
+      this.maxWidth = MAX_WIDTH_SINGLE_MODE;
+      this.maxHeight = MAX_HEIGHT_SINGLE_MODE;
       if (this.files.length > 0) {
         console.log("ifShowSagittalCoronal = false");
         this.setState({
@@ -1348,6 +1357,8 @@ class App extends Component<{}, State> {
         }
       }
     } else if (seriesMode === "notSeriesMode") {
+      this.maxWidth = MAX_WIDTH_SERIES_MODE;
+      this.maxHeight = MAX_HEIGHT_SERIES_MODE;
       this.setState({ seriesMode: "seriesMode", ifShowSagittalCoronal: true });
       if (this.files.length > 0) {
         await this.loadSeriesFilesToRender(this.files);
