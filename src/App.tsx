@@ -1,6 +1,7 @@
 import React, { Component } from "react";
 import Slider from "rc-slider";
 import "rc-slider/assets/index.css";
+import { isEqual } from "underscore";
 
 import {
   Dropdown,
@@ -124,6 +125,7 @@ type State = {
   currentCoronaNo: number;
   totalCoronaFrames: number;
   seriesMode: string;
+  isCommonAxialView: boolean;
 };
 
 interface NormalizationProps {
@@ -199,6 +201,7 @@ class App extends Component<{}, State> {
       // resY: '',
       // photometric: '',
       // modality: '',
+      isCommonAxialView: false,
       currFileNo: 0,
       totalFiles: 0,
       currentSagittalNo: 0,
@@ -328,6 +331,12 @@ class App extends Component<{}, State> {
     if (!daikonImage) {
       try {
         image = daikon.Series.parseImage(new DataView(buffer));
+        if (isEqual(image.getImageDirections(), [1, 0, 0, 0, 1, 0])) {
+          this.setState({ isCommonAxialView: true });
+          // console.log("normal dicom:");
+        } else {
+          console.log("not axial dicom:", image.getAcquiredSliceDirection());
+        }
       } catch (e) {
         console.log("parse dicom error:", e);
       }
@@ -407,7 +416,7 @@ class App extends Component<{}, State> {
       extraWidthScale,
       imageData,
     } = arg;
-    console.log(`switch to ${frameIndex} Frame`);
+    // console.log(`switch to ${frameIndex} Frame`);
 
     let ifRGB = false;
     let rgbMode = 0; // 0: rgbrgb... 1: rrrgggbbb
@@ -417,20 +426,6 @@ class App extends Component<{}, State> {
     let storeMin;
 
     if (!canvasRef || canvasRef === this.myCanvasRef) {
-      // const seriesID = image.getSeriesId();
-      // const a1 = image.getImageDirections(); // [100010]
-      // const a2 = image.getImagePosition(); //[-155, -170, -189.75]
-      // const a3 = image.getSeriesNumber(); //5
-      // const a4 = image.getPixelSpacing(); //[0.66, 0.66] mm
-      // const a5 = image.getSliceThickness(); //5 mm
-      // const a6 = image.getAcquiredSliceDirection(); //2
-      // daikon.Image.SLICE_DIRECTION_UNKNOWN = -1;
-      // daikon.Image.SLICE_DIRECTION_AXIAL = 2;
-      // daikon.Image.SLICE_DIRECTION_CORONAL = 1;
-      // daikon.Image.SLICE_DIRECTION_SAGITTAL = 0;
-      // daikon.Image.SLICE_DIRECTION_OBLIQUE = 3;
-      // const a7 = image.getSliceLocation(); //-189.75
-
       // BUG:
       // fetchFile (file://) case will need longer time to getPhotometricInterpretation after using a while
       const photometric = image.getPhotometricInterpretation();
@@ -506,7 +501,7 @@ class App extends Component<{}, State> {
     if (useWindowCenter === undefined) {
       ({ useWindowCenter } = this.state);
     }
-    console.log("useWindowWidth:", useWindowWidth);
+    // console.log("useWindowWidth:", useWindowWidth);
     ({ max, min } = this.getNormalizationRange(
       useWindowWidth,
       useWindowCenter,
@@ -617,7 +612,7 @@ class App extends Component<{}, State> {
     // }
 
     if (scale !== 1) {
-      console.log("scale:", scale);
+      // console.log("scale:", scale);
     }
     const c2: any = canvasRef.current;
     c2.width = rawDataWidth / scale;
@@ -676,7 +671,7 @@ class App extends Component<{}, State> {
     });
 
     const { ifShowSagittalCoronal } = this.state;
-    console.log("ifShowSagittalCoronal:", ifShowSagittalCoronal);
+    // console.log("ifShowSagittalCoronal:", ifShowSagittalCoronal);
     if (ifShowSagittalCoronal) {
       this.buildAxialView(
         this.currentSeries,
@@ -685,7 +680,7 @@ class App extends Component<{}, State> {
       );
     } else {
       const newFile = this.files[value - 1];
-      console.log("switch to image:", value, newFile);
+      // console.log("switch to image:", value, newFile);
       if (!this.isOnlineMode) {
         this.loadFile(newFile);
       } else {
@@ -713,12 +708,13 @@ class App extends Component<{}, State> {
   checkDicomNameAndResetState(name: string) {
     const c2: any = this.myCanvasRef.current;
     if (c2) {
-      console.log("reset canvas");
+      // console.log("reset canvas");
       const ctx2 = c2.getContext("2d");
       ctx2.clearRect(0, 0, c2.width, c2.height);
     }
     this.setState({
       ...initialImageState,
+      isCommonAxialView: false,
     });
     const { ifShowSagittalCoronal } = this.state;
     if (!ifShowSagittalCoronal) {
@@ -812,14 +808,14 @@ class App extends Component<{}, State> {
       const image = daikon.Series.parseImage(new DataView(buffer as any));
       // console.log(image.getSliceLocation());
 
-      const orientationArray = image.getImageDirections(); //[1,0,0,0,1,0] Tag	(0020,0037)
-      const daikonOrientation = image.getOrientation(); //XYZ--+
-      console.log(
-        "orientationArray:",
-        orientationArray,
-        ";daikonOrientation:",
-        daikonOrientation
-      );
+      // const orientationArray = image.getImageDirections(); //[1,0,0,0,1,0] Tag	(0020,0037)
+      // const daikonOrientation = image.getOrientation(); //XYZ--+
+      // console.log(
+      //   "orientationArray:",
+      //   orientationArray,
+      //   ";daikonOrientation:",
+      //   daikonOrientation
+      // );
 
       if (image === null) {
         console.error(daikon.Series.parserError);
@@ -834,13 +830,15 @@ class App extends Component<{}, State> {
         // https://dicom.innolitics.com/ciods/ct-image/image-plane/00200037
 
         // https://www.slicer.org/wiki/Coordinate_systems
-        if (image.getAcquiredSliceDirection() !== 2) {
-          console.log("not axial dicom:", image.getAcquiredSliceDirection());
-          continue;
-        }
 
         if (series.images.length === 0) {
           series.addImage(image);
+          if (isEqual(image.getImageDirections(), [1, 0, 0, 0, 1, 0])) {
+            this.setState({ isCommonAxialView: true });
+            // console.log("normal dicom:");
+          } else {
+            console.log("not axial dicom:", image.getAcquiredSliceDirection());
+          }
         }
 
         // if it's part of the same series, add it
@@ -975,29 +973,11 @@ class App extends Component<{}, State> {
       //   currFileNo: 1,
       // });
       const { ifShowSagittalCoronal } = this.state;
-      // TODO:
-      // 1. x 如果每一張的 window center, width 不一樣呢?
-      // 很難處理. 那就把 default 中間的 windowWidth, windowCenter 當做 useWindowWidth/center 好了
-      // 2. *pass max/min<-??, width/height
-      // 3. x make another 2 view raw data
-      // 5. x switch frames in 2 view,
-      // 6. x enable changing windowCenter & windowWidth? onMouseMove/
-      // 15.x [todo]!! add handleNormalizeModeChange(switch show mode) on sagittal/coronal ???
-      // 17.x 這個要跟 global max/min mode 一起做
-      // 4. *mm scale ????? 要 pass. 再乘上原本的 scale<
-      // 13. *[todo] test switchImage/onKeyDown x switchFrame
-      // 8. x 應該不能每個 frame 都用其極值 normalize, 要嘛統一用 windowCenter, 如果沒有就用原本的值
-      // 12.x  [todo] test http case
-      // x 18. switch showSagittal mode !!!!
-      // 9. *axial view 也存著全部的 rawData ???? yes
-      // 10. p.s. 不處理 多張同時又是 multi-frame 的 case
-      // 11. [todo] show 軸的字
-      // 18. [todo] fine tune UI
 
       if (ifShowSagittalCoronal) {
         await this.loadSeriesFilesToRender(this.files);
       } else {
-        console.log("ifShowSagittalCoronal = false");
+        // console.log("ifShowSagittalCoronal = false");
         this.setState({
           totalFiles: this.files.length,
           currFileNo: 1,
@@ -1024,8 +1004,8 @@ class App extends Component<{}, State> {
       return;
     }
     const n_slice = images.length;
-    // sggittal: h*n_slice, 共 w 個. w 裡的第 j 個 sgg view的話,
-    // 0th row: series.images[0] 的第 j column
+    // sggittal: h*n_slice, total: w. j-ith sgg view in w frames
+    // 0th row: series.images[0] - j-th column
     const rawData: number[] = []; //new Array<number>(h * n_slice);
     // iterate each slice
     this.currentSeriesImageObjects.forEach((obj: any) => {
@@ -1078,8 +1058,8 @@ class App extends Component<{}, State> {
       return;
     }
     const n_slice = images.length;
-    // sggittal: w*n_slice, 共 h 個. h 裡的第 k 個 corona view的話,
-    // 0th row: series.images[0] 的第 0 or final row
+    // sggittal: w*n_slice, tota: h. k-th corona view in h frames
+    // 0th row: series.images[0] - 0th or final row
     const rawData: number[] = []; //new Array<number>(h * n_slice);
     // iterate each slice
     this.currentSeriesImageObjects.forEach((obj: any) => {
@@ -1182,7 +1162,7 @@ class App extends Component<{}, State> {
   };
 
   onMouseUp = (event: any) => {
-    console.log("onMouseUp:", event);
+    // console.log("onMouseUp:", event);
     this.setState({
       isValidMouseDown: false,
     });
@@ -1335,7 +1315,7 @@ class App extends Component<{}, State> {
     // e: React.SyntheticEvent<HTMLElement, Event>,
     // obj: DropdownProps
     const { value } = obj;
-    console.log("mode:", value);
+    // console.log("mode:", value);
     const { seriesMode } = this.state;
     if (seriesMode === "seriesMode") {
       this.setState({
@@ -1393,6 +1373,7 @@ class App extends Component<{}, State> {
       currentCoronaNo,
       totalCoronaFrames,
       seriesMode,
+      isCommonAxialView,
     } = this.state;
     let info = "[meta]";
     info += ` modality:${modality};photometric:${photometric}`;
@@ -1596,7 +1577,7 @@ class App extends Component<{}, State> {
                     {`${currFilePath}. ${currFileNo}/${totalFiles}`}
                   </div>
                   <div className="flex-container">
-                    <div>{"S"}</div>
+                    {isCommonAxialView ? <div>{"S"}</div> : null}
                     <Slider
                       value={currFileNo}
                       step={1}
@@ -1604,12 +1585,12 @@ class App extends Component<{}, State> {
                       max={totalFiles}
                       onChange={this.switchImage}
                     />
-                    <div>I</div>
+                    {isCommonAxialView ? <div>{"I"}</div> : null}{" "}
                   </div>
                   {ifShowSagittalCoronal ? (
                     <>
                       <div className="flex-container">
-                        <div>R</div>
+                        {isCommonAxialView ? <div>{"R"}</div> : null}{" "}
                         <Slider
                           value={currentSagittalNo}
                           step={1}
@@ -1617,10 +1598,10 @@ class App extends Component<{}, State> {
                           max={totalSagittalFrames}
                           onChange={this.switchSagittal}
                         />
-                        <div>L</div>
+                        {isCommonAxialView ? <div>{"L"}</div> : null}{" "}
                       </div>
                       <div className="flex-container">
-                        <div>A</div>
+                        {isCommonAxialView ? <div>{"A"}</div> : null}{" "}
                         <Slider
                           value={currentCoronaNo}
                           step={1}
@@ -1628,7 +1609,7 @@ class App extends Component<{}, State> {
                           max={totalCoronaFrames}
                           onChange={this.switchCorona}
                         />
-                        <div>P</div>
+                        {isCommonAxialView ? <div>{"P"}</div> : null}{" "}
                       </div>
                     </>
                   ) : null}
@@ -1652,7 +1633,7 @@ class App extends Component<{}, State> {
                     alignItems: "center",
                   }}
                 >
-                  <div>A</div>
+                  {isCommonAxialView ? <div>{"A"}</div> : null}{" "}
                   <div
                     style={{
                       display: "flex",
@@ -1660,7 +1641,7 @@ class App extends Component<{}, State> {
                       alignItems: "center",
                     }}
                   >
-                    <div>R</div>
+                    {isCommonAxialView ? <div>{"R"}</div> : null}{" "}
                     <canvas
                       onMouseDown={this.onMouseCanvasDown}
                       // onMouseUp={this.onMouseUp0}
@@ -1670,9 +1651,9 @@ class App extends Component<{}, State> {
                       height={MAX_HEIGHT_SERIES_MODE}
                       style={{ backgroundColor: "black" }}
                     />
-                    <div>L</div>
+                    {isCommonAxialView ? <div>{"L"}</div> : null}{" "}
                   </div>
-                  <div>P</div>
+                  {isCommonAxialView ? <div>{"P"}</div> : null}{" "}
                 </div>
 
                 {ifShowSagittalCoronal ? (
@@ -1685,7 +1666,7 @@ class App extends Component<{}, State> {
                         alignItems: "center",
                       }}
                     >
-                      <div>S</div>
+                      {isCommonAxialView ? <div>{"S"}</div> : null}{" "}
                       <div
                         style={{
                           display: "flex",
@@ -1693,7 +1674,7 @@ class App extends Component<{}, State> {
                           alignItems: "center",
                         }}
                       >
-                        <div>A</div>
+                        {isCommonAxialView ? <div>{"A"}</div> : null}{" "}
                         <canvas
                           onMouseDown={this.onMouseCanvasDown}
                           // onMouseUp={this.onMouseUp0}
@@ -1703,9 +1684,9 @@ class App extends Component<{}, State> {
                           height={MAX_HEIGHT_SERIES_MODE}
                           style={{ backgroundColor: "yellow" }}
                         />
-                        <div>P</div>
+                        {isCommonAxialView ? <div>{"P"}</div> : null}{" "}
                       </div>
-                      <div>I</div>
+                      {isCommonAxialView ? <div>{"I"}</div> : null}{" "}
                     </div>
                     <div
                       style={{
@@ -1715,7 +1696,7 @@ class App extends Component<{}, State> {
                         alignItems: "center",
                       }}
                     >
-                      <div>S</div>
+                      {isCommonAxialView ? <div>{"S"}</div> : null}{" "}
                       <div
                         style={{
                           display: "flex",
@@ -1723,8 +1704,7 @@ class App extends Component<{}, State> {
                           alignItems: "center",
                         }}
                       >
-                        <div>R</div>
-
+                        {isCommonAxialView ? <div>{"R"}</div> : null}{" "}
                         <canvas
                           onMouseDown={this.onMouseCanvasDown}
                           // onMouseUp={this.onMouseUp0}
@@ -1734,9 +1714,9 @@ class App extends Component<{}, State> {
                           height={MAX_HEIGHT_SERIES_MODE}
                           style={{ backgroundColor: "green" }}
                         />
-                        <div>L</div>
+                        {isCommonAxialView ? <div>{"L"}</div> : null}{" "}
                       </div>
-                      <div>I</div>
+                      {isCommonAxialView ? <div>{"I"}</div> : null}{" "}
                     </div>
                   </>
                 ) : null}
