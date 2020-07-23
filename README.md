@@ -36,9 +36,9 @@ Make sure you have [`yarn`](https://yarnpkg.com/) installed first.
 2. `yarn build`.
 3. `yarn deploy` (which deploys to the `homepage` in package.json, change it if you need)
 
-## Usage
+## Usage & features
 
-Just drag your DICOM files/folder into Chrome browser and extension mode is anable to click DICOM url to view online DICOM files.
+https://github.com/grimmer0125/dicom-web-viewer/wiki
 
 ### Not support yet:
 
