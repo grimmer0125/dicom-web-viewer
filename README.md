@@ -55,7 +55,6 @@ Reference:
 3. https://dicom.innolitics.com/ciods/cr-image/general-image/00200020
 4. https://stackoverflow.com/questions/34782409/understanding-dicom-image-attributes-to-get-axial-coronal-sagittal-cuts/34783893
 5. https://dicom.innolitics.com/ciods/ct-image/image-plane/00200037
-6. https://www.slicer.org/wiki/Coordinate_systems
 
 ## how to order series dicom files
 
