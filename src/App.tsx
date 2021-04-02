@@ -16,6 +16,11 @@ import Hotkeys from "react-hot-keys";
 import * as daikon from "daikon";
 import { fetchDicomAsync, loadDicomAsync } from "./utility";
 
+declare var languagePluginLoader:any;
+declare var pyodide:any;
+declare var window: any;
+
+
 const { fromEvent } = require("file-selector");
 
 // import { fromEvent } from "file-selector";
@@ -317,6 +322,91 @@ class App extends Component<{}, State> {
     }
   };
 
+  async renderFrameByPythonData(image2dUnit8Array: any[][], min: number, max: number) {
+    // ignore setState for 
+    // 1. multiFrameInfo & frameIndexes & currFrameIndex & pixelMax, pixelMin 
+    //  & resX/resY <- only shown string
+    // 2. this.currentImage <- cache
+
+    // ignore 
+    // 1. possible window center & width mode (need work with rescale equation)
+    // 2. RGB mode1, RGB mode2
+    // 3. MONOCHROME1 inverted color 
+    // 4. multiple frame 
+    // 5. corona & sagittal views
+    // 6. scale (shrink to viewer size )
+    // 7. get max/min from dicom ?? 
+    // https://pydicom.github.io/pydicom/dev/reference/generated/pydicom.pixel_data_handlers.apply_rescale.html
+
+
+    //** extra step
+    const rawDataWidth  = image2dUnit8Array[0].length;//obj.numCols;
+    const rawDataHeight = image2dUnit8Array.length; //obj.numRows 
+    
+    // const arr0 = image2dUnit8Array.reduce(function (p, c) {
+    //   return p.concat(c);
+    // }); 
+    // const arr = image2dUnit8Array.flat();   
+    // const max = Math.max.apply(null, arr); // 9
+    // const min = Math.min.apply(null, arr); // 1
+    //** 
+
+    // if (!canvasRef) {
+    const canvasRef = this.myCanvasRef;
+    // }
+    if (!canvasRef.current) {
+      console.log("canvasRef is not ready, return");
+      return;
+    }
+
+    const c = canvasRef.current; //document.createElement("canvas");
+    c.width = rawDataWidth;
+    c.height = rawDataHeight;
+    const ctx = c.getContext("2d");
+    if (!ctx) {
+      return;
+    }
+    const imgData = ctx.createImageData(rawDataWidth, rawDataHeight);
+    const { data } = imgData;     
+
+    // TODO: 
+    // 1. x 1d rawData <-> image2dUnit8Array
+    // 2. storeMax -> max/min from pydicom ???
+    for (let i = 0, k = 0; i < data.byteLength; i += 4, k += 1) {
+      let row = Math.floor(k/rawDataWidth);
+      let column = k% rawDataWidth; 
+      let value = image2dUnit8Array[row][column];
+      // let value = arr[k]; //rawData[k];
+
+      // Create array view
+      // const array = new Uint8ClampedArray(rawData.length);
+      // BUG: coranal/sagittal may have undefined so will not have normalization
+      if (max && min) {
+        const delta = max - min;
+        // for (let i = 0; i < rawData.length; i += 1) {
+        // truncate
+        // if (min !== storeMin || max !== storeMax) {
+        //   if (value > max) {
+        //     value = max;
+        //   } else if (value < min) {
+        //     value = min;
+        //   }
+        // }
+        // normalization
+        value = ((value - min) * 255) / delta;
+        // }
+      }
+
+      data[i] = value;
+      data[i + 1] = value;
+      data[i + 2] = value;
+      data[i + 3] = 255;
+    } 
+    
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  // TODO: 改成從 pydicom parse 再去 render 
   renderImage = (
     buffer: any,
     daikonImage?: any,
@@ -750,8 +840,60 @@ class App extends Component<{}, State> {
       return;
     }
 
-    const buffer = await loadDicomAsync(file);
-    this.renderImage(buffer);
+    const buffer = await loadDicomAsync(file);   
+    const { data, min, max}  = await this.parseByPython(buffer);
+    this.renderFrameByPythonData(data, min, max);    
+    // this.renderImage(buffer);
+  }
+
+  async parseByPython(buffer:any){
+    const pythonCode = `
+      import setuptools
+      import micropip
+      import io
+      await micropip.install('pydicom')
+      print("ok1")        
+      import pydicom
+      print("ok2")
+      from js import buffer,x,y 
+      print(x)       
+      print("buffer3:")
+      # print(buffer) #  memoryview object.
+      ds = pydicom.dcmread(io.BytesIO(buffer))
+      name = ds.PatientName
+      print("family name:"+name.family_name)
+      image = ds.pixel_array
+      min = image.min() #ds[0x0028, 0x0101]
+      max = image.max() #ds[0x0028, 0x0103]
+      print(min)
+      print(max)
+      name2 = name.family_name
+      image, min, max # use image, name will result [data, proxy] after toJS
+    `;
+    window.x = { "a" : 7, "b" : 2};
+    window.y = { "a" : 7, "b" : 2};
+    (window as any).buffer = buffer
+    await languagePluginLoader;
+    await pyodide.loadPackage(['numpy', 'micropip']);
+    console.log("start async code")
+
+    const result = await pyodide.runPythonAsync(pythonCode);
+
+    //works
+    // let image = pyodide.pyimport('image');
+    // let imageObj = image.toJs(); 
+    // let name2 = pyodide.pyimport('name2');
+
+    // let proxyImage = pyodide.globals.get("image"); // latest dev (master) mention this but it works in v0.17.0a2
+
+    // https://pyodide.org/en/latest/usage/quickstart.html
+    const result2 = result.toJs();
+    const image2dUnit8Array = result2[0];//proxyImage.toJs(); // works ! uint8 2d array
+    const min = result2[1];
+    const max = result2[2]
+    result.destroy();
+    console.log('done')
+    return { data: image2dUnit8Array, min, max} ;
   }
 
   async loadSeriesFilesToRender(files: string[] | any[]) {
