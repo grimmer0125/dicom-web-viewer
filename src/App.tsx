@@ -18,8 +18,7 @@ import { fetchDicomAsync, loadDicomAsync } from "./utility";
 
 declare var languagePluginLoader:any;
 declare var pyodide:any;
-declare var window: any;
-
+// declare var window: any;
 
 const { fromEvent } = require("file-selector");
 
@@ -250,6 +249,8 @@ class App extends Component<{}, State> {
         this.onOpenFileURLs(fileURLs);
       }
     }
+
+    this.initPyodide();
   }
 
   // NOTE:
@@ -846,54 +847,58 @@ class App extends Component<{}, State> {
     // this.renderImage(buffer);
   }
 
-  async parseByPython(buffer:ArrayBuffer){ //ArrayBuffer
+  async initPyodide(){
     const pythonCode = `
       import setuptools
       import micropip
       import io
       await micropip.install('pydicom')
-      print("ok1")        
+      print("install pydicom ok")        
+    `;
+
+    console.log("start to use python code, initialize Pyodide")
+    await languagePluginLoader;
+    await pyodide.loadPackage(['numpy', 'micropip']);
+    await pyodide.runPythonAsync(pythonCode);
+
+    console.log("finish initializing Pyodide")
+  }
+
+  async parseByPython(buffer:ArrayBuffer){
+    const pythonCode = `
       import pydicom
       from pydicom.pixel_data_handlers.util import apply_modality_lut
-      print("ok2")
-      from my_js_module import buffer,x,y 
-      print(x)       
-      print("buffer3:")
+      from my_js_module import buffer 
+      print("get buffer")
       # print(buffer) #  memoryview object.
       ds = pydicom.dcmread(io.BytesIO(buffer))
       name = ds.PatientName
       print("family name:"+name.family_name)
       arr = ds.pixel_array
       image = apply_modality_lut(arr, ds)
-      min = image.min() #ds[0x0028, 0x0101]
-      max = image.max() #ds[0x0028, 0x0103]
+      min = image.min() 
+      max = image.max() 
       print(min)
       print(max)
       name2 = name.family_name
-      image, min, max # use image, name will result [data, proxy] after toJS
+      image, min, max # use image, name will result [data, proxy] after toJS <- not happen anymore
     `;
 
-
-    let my_js_module = {
+    const my_js_module = {
       buffer, 
-      x:3, 
-      y:4,
     };    
     pyodide.registerJsModule("my_js_module", my_js_module);
 
-    // window.x = { "a" : 7, "b" : 2};
-    // window.y = { "a" : 7, "b" : 2};
-    // (window as any).buffer = buffer
-    await languagePluginLoader;
-    await pyodide.loadPackage(['numpy', 'micropip']);
-    console.log("start to use python code")
 
     console.log("test loading python code from a python file")
-    const py2 = await fetch('a.py');
-    const py3 = await py2.text();
-    const kk = pyodide.runPython(py3);
-    const kk2 = await pyodide.runPythonAsync(await(await fetch('a.py')).text());
+    // const py2 = await fetch('a.py');
+    // const py3 = await py2.text();
+    // const kk = pyodide.runPython(py3);
+    // const kk4 = pyodide.runPython(py3);
+    // const kk2 = await pyodide.runPythonAsync(await(await fetch('a.py')).text());
     console.log("after testing fetch python")
+
+    console.log("start to use python to parse parse dicom data")
 
     const result = await pyodide.runPythonAsync(pythonCode);
 
