@@ -854,6 +854,7 @@ class App extends Component<{}, State> {
       await micropip.install('pydicom')
       print("ok1")        
       import pydicom
+      from pydicom.pixel_data_handlers.util import apply_modality_lut
       print("ok2")
       from my_js_module import buffer,x,y 
       print(x)       
@@ -862,7 +863,8 @@ class App extends Component<{}, State> {
       ds = pydicom.dcmread(io.BytesIO(buffer))
       name = ds.PatientName
       print("family name:"+name.family_name)
-      image = ds.pixel_array
+      arr = ds.pixel_array
+      image = apply_modality_lut(arr, ds)
       min = image.min() #ds[0x0028, 0x0101]
       max = image.max() #ds[0x0028, 0x0103]
       print(min)
