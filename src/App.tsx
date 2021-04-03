@@ -182,6 +182,7 @@ class App extends Component<{}, State> {
   seriesGlobalMin: number;
   maxWidth = MAX_WIDTH_SINGLE_MODE;
   maxHeight = MAX_HEIGHT_SINGLE_MODE;
+  my_js_module:any;
 
   constructor() {
     super({});
@@ -861,6 +862,11 @@ class App extends Component<{}, State> {
     await pyodide.loadPackage(['numpy', 'micropip']);
     await pyodide.runPythonAsync(pythonCode);
 
+    this.my_js_module = {
+    };    
+    pyodide.registerJsModule("my_js_module", this.my_js_module);
+
+
     console.log("finish initializing Pyodide")
   }
 
@@ -884,11 +890,7 @@ class App extends Component<{}, State> {
       image, min, max # use image, name will result [data, proxy] after toJS <- not happen anymore
     `;
 
-    const my_js_module = {
-      buffer, 
-    };    
-    pyodide.registerJsModule("my_js_module", my_js_module);
-
+    this.my_js_module["buffer"] = buffer;
 
     console.log("test loading python code from a python file")
     // const py2 = await fetch('a.py');
