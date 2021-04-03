@@ -322,7 +322,7 @@ class App extends Component<{}, State> {
     }
   };
 
-  async renderFrameByPythonData(image2dUnit8Array: any[][], min: number, max: number) {
+  async renderFrameByPythonData(image2dUnit8Array: Array<Uint8Array>, min: number, max: number) {
     // ignore setState for 
     // 1. multiFrameInfo & frameIndexes & currFrameIndex & pixelMax, pixelMin 
     //  & resX/resY <- only shown string
@@ -846,7 +846,7 @@ class App extends Component<{}, State> {
     // this.renderImage(buffer);
   }
 
-  async parseByPython(buffer:any){
+  async parseByPython(buffer:ArrayBuffer){ //ArrayBuffer
     const pythonCode = `
       import setuptools
       import micropip

@@ -1,9 +1,9 @@
-export async function loadDicomAsync(file: any) {
+export async function loadDicomAsync(file: any): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const fileContent = reader.result;
-      resolve(fileContent);
+      resolve(fileContent as ArrayBuffer);
       //   this.renderImage(fileContent);
     };
     reader.onabort = () => console.log("file reading was aborted");
