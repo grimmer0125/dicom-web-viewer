@@ -855,7 +855,7 @@ class App extends Component<{}, State> {
       print("ok1")        
       import pydicom
       print("ok2")
-      from js import buffer,x,y 
+      from my_js_module import buffer,x,y 
       print(x)       
       print("buffer3:")
       # print(buffer) #  memoryview object.
@@ -870,9 +870,18 @@ class App extends Component<{}, State> {
       name2 = name.family_name
       image, min, max # use image, name will result [data, proxy] after toJS
     `;
-    window.x = { "a" : 7, "b" : 2};
-    window.y = { "a" : 7, "b" : 2};
-    (window as any).buffer = buffer
+
+
+    let my_js_module = {
+      buffer, 
+      x:3, 
+      y:4,
+    };    
+    pyodide.registerJsModule("my_js_module", my_js_module);
+
+    // window.x = { "a" : 7, "b" : 2};
+    // window.y = { "a" : 7, "b" : 2};
+    // (window as any).buffer = buffer
     await languagePluginLoader;
     await pyodide.loadPackage(['numpy', 'micropip']);
     console.log("start to use python code")
