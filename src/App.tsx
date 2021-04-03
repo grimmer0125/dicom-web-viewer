@@ -875,11 +875,18 @@ class App extends Component<{}, State> {
     (window as any).buffer = buffer
     await languagePluginLoader;
     await pyodide.loadPackage(['numpy', 'micropip']);
-    console.log("start async code")
+    console.log("start to use python code")
+
+    console.log("test loading python code from a python file")
+    const py2 = await fetch('a.py');
+    const py3 = await py2.text();
+    const kk = pyodide.runPython(py3);
+    const kk2 = await pyodide.runPythonAsync(await(await fetch('a.py')).text());
+    console.log("after testing fetch python")
 
     const result = await pyodide.runPythonAsync(pythonCode);
 
-    //works
+    // works
     // let image = pyodide.pyimport('image');
     // let imageObj = image.toJs(); 
     // let name2 = pyodide.pyimport('name2');
