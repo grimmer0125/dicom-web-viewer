@@ -56,7 +56,11 @@ Reference:
 4. https://stackoverflow.com/questions/34782409/understanding-dicom-image-attributes-to-get-axial-coronal-sagittal-cuts/34783893
 5. https://dicom.innolitics.com/ciods/ct-image/image-plane/00200037
 
-## how to order series dicom files
+## DICOM parser library - Daikon 
+
+https://github.com/rii-mango/Daikon which lists viewable DICOM Supported Transfer Syntax. 
+
+### how to order series dicom files
 
 daikon code snippet
 
