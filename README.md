@@ -1,6 +1,8 @@
 # DICOM Image Viewer
 
-## Extension type
+Besides Chrome extension, web demo site: https://grimmer.io/dicom-web-viewer/
+
+## Chrome Extension type
 
 ### Install from Chrome Web Store
 
