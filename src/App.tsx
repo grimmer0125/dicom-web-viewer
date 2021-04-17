@@ -628,17 +628,33 @@ class App extends Component<{}, State> {
   };
 
   async onOpenFileURLs(fileURLStr: string) {
-    const files = fileURLStr.split("file://");
+    const files = fileURLStr.split("file://"); // https:// or file://xx + file://xx2
     files.sort((a, b) => {
       return a.localeCompare(b);
     });
     console.log("sorted files:", files);
+
+    // case1:
+    // e.g. chrome-extension://fpklmaeeoagikoaiakadencfmhodampd/index.html#https://raw.githubusercontent.com/grimmer0125/dicom-web-viewer/test/image-00000-ot.dcm
+    // -> fileURLStr = "https://raw.githubusercontent.com/grimmer0125/dicom-web-viewer/test/image-00000-ot.dcm"
+    // -> files = ["https://raw.githubusercontent.com/grimmer0125/dicom-web-viewer/test/image-00000-ot.dcm]
+
+    // case2:
+    // drag a local file. e.g. fileURLs.split("file://"); fileURLStr = "file://xxx.dcm"
+    // files = ["", "/users/grimmer/downloads/dicom/image-00000-ot.dcm"]
+
     this.files = [];
-    files.forEach((file, index) => {
-      if (index !== 0) {
-        this.files.push(`file://${file}`);
-      }
-    });
+    if (files.length === 1) {
+      // case1
+      this.files.push(`${files[0]}`);
+    } else {
+      // case2
+      files.forEach((file, index) => {
+        if (index !== 0 || files.length === 1 ) {
+          this.files.push(`file://${file}`);
+        }
+      });
+    }
 
     const { ifShowSagittalCoronal } = this.state;
     if (ifShowSagittalCoronal) {
