@@ -94,6 +94,7 @@ const initialImageState = {
   resY: 0,
   photometric: "",
   modality: "",
+  transferSyntax: "",
   hasDICOMExtension: true,
   isValidMouseDown: false, // reset when switching to a new image
 };
@@ -115,6 +116,7 @@ type State = {
   resY: number;
   photometric: string;
   modality: string;
+  transferSyntax: string;
   hasDICOMExtension: boolean;
   isValidMouseDown: boolean; // switch to another image, becomes invalid
   useWindowCenter: number;
@@ -150,8 +152,8 @@ function NormalizationComponent(props: NormalizationProps) {
         value={mode}
         checked={currNormalizeMode === mode}
         onChange={onChange}
-        // checked={ifWindowCenterMode}
-        // onChange={this.handleNormalizeModeChange}
+      // checked={ifWindowCenterMode}
+      // onChange={this.handleNormalizeModeChange}
       />
       {data ? ` c:${data.L}, w:${data.W}  ` : `  `}
     </>
@@ -430,13 +432,14 @@ class App extends Component<{}, State> {
       // fetchFile (file://) case will need longer time to getPhotometricInterpretation after using a while
       const photometric = image.getPhotometricInterpretation();
       const modality = image.getModality();
+      const transferSyntax = image.getTransferSyntax();
       if (photometric !== null) {
         // const mode = image.getPlanarConfig();
-        // console.log("Planar mode:", mode);
         if (photometric.trim().indexOf("RGB") !== -1) {
           ifRGB = true;
 
           rgbMode = image.getPlanarConfig() || 0;
+          console.log("Planar mode:", rgbMode);
         } else if (photometric.trim().toLowerCase().indexOf("palette") !== -1) {
           ifRGB = true;
         }
@@ -477,6 +480,7 @@ class App extends Component<{}, State> {
         resX: rawDataWidth,
         resY: rawDataHeight,
         modality,
+        transferSyntax,
         photometric,
       });
     }
@@ -650,7 +654,7 @@ class App extends Component<{}, State> {
     } else {
       // case2
       files.forEach((file, index) => {
-        if (index !== 0 || files.length === 1 ) {
+        if (index !== 0 || files.length === 1) {
           this.files.push(`file://${file}`);
         }
       });
@@ -1378,6 +1382,7 @@ class App extends Component<{}, State> {
       resY,
       photometric,
       modality,
+      transferSyntax,
       currFileNo,
       totalFiles,
       hasDICOMExtension,
@@ -1391,8 +1396,8 @@ class App extends Component<{}, State> {
       seriesMode,
       isCommonAxialView,
     } = this.state;
-    let info = "[meta]";
-    info += ` modality:${modality};photometric:${photometric}`;
+    let info = "";
+    info += ` modality:${modality};photometric:${photometric};transferSyntax:${transferSyntax}`;
     if (resX && resY) {
       info += ` resolution:${resX}x${resY}`;
     }
@@ -1420,7 +1425,7 @@ class App extends Component<{}, State> {
         allowRepeat
         keyName="right,left"
         onKeyDown={this.onKeyDown}
-        // onKeyUp={this.onKeyUp.bind(this)}
+      // onKeyUp={this.onKeyUp.bind(this)}
       >
         <div className="flex-container">
           <div>
@@ -1482,11 +1487,9 @@ class App extends Component<{}, State> {
               >
                 <div>
                   <div className="flex-container">
-                    {`pixel/HU max:${pixelMax}, min:${pixelMin}; useWindowCenter:${
-                      tmpWindowCenter ?? ""
-                    }, useWindowWidth:${
-                      tmpWindowWidth ?? ""
-                    }; Normalization mode:`}
+                    {`pixel/HU max:${pixelMax}, min:${pixelMin}; useWindowCenter:${tmpWindowCenter ?? ""
+                      }, useWindowWidth:${tmpWindowWidth ?? ""
+                      }; Normalization mode:`}
                     <br></br>
                     {`(WindowCenter mode will fallback to Pixel/HU MaxMin if no value):`}
                   </div>
