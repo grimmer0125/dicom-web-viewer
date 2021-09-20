@@ -228,9 +228,28 @@ class App extends Component<{}, State> {
   }
 
   async test_pyodide() {
-    //await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.17.0/full/" });
+    // 0.17
+    // await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.17.0/full/" });
+
     // let pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/" });
-    await loadPyodide({ indexURL: "pyodide/" });
+    // 0.18  
+
+
+    let baseURL = ""
+    const regex = /chrome-extension:\/\/.*(?=\/index.html)/;
+    const matchExtensionURL = window.location.href.match(regex)
+    if (matchExtensionURL) {
+      baseURL = matchExtensionURL[0]
+    } else {
+      baseURL = window.location.href
+    }
+
+
+    // const baseURL = "chrome-extension://fpklmaeeoagikoaiakadencfmhodampd" //window.location.href
+    console.log("baseURL:", baseURL) // index.html
+    // baseURL: chrome-extension://fpklmaeeoagikoaiakadencfmhodampd/index.html 去掉 /index.html 
+
+    const pyodide = await loadPyodide({ indexURL: baseURL + "/" + "pyodide/" });
 
     console.log(pyodide.runPython(`
     import sys
