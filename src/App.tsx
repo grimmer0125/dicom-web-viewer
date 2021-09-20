@@ -18,6 +18,10 @@ import { fetchDicomAsync, loadDicomAsync } from "./utility";
 
 const { fromEvent } = require("file-selector");
 
+declare var loadPyodide: any;
+declare var pyodide: any;
+
+
 // import { fromEvent } from "file-selector";
 
 enum NormalizationMode {
@@ -223,6 +227,17 @@ class App extends Component<{}, State> {
     this.seriesGlobalMin = 0;
   }
 
+  async test_pyodide() {
+    //await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.17.0/full/" });
+    // let pyodide = await loadPyodide({ indexURL: "https://cdn.jsdelivr.net/pyodide/v0.18.1/full/" });
+    await loadPyodide({ indexURL: "pyodide/" });
+
+    console.log(pyodide.runPython(`
+    import sys
+    sys.version
+  `));
+  }
+
   componentDidMount() {
     window.addEventListener("mouseup", this.onMouseUp);
     // window.addEventListener("mouseup", this.onMouseUp);
@@ -247,6 +262,7 @@ class App extends Component<{}, State> {
         this.onOpenFileURLs(fileURLs);
       }
     }
+    this.test_pyodide()
   }
 
   // NOTE:
@@ -1193,7 +1209,7 @@ class App extends Component<{}, State> {
 
   // TODO: add throttle-debounce
   onMouseMove = (event: any) => {
-    // console.log("onMousemove:", event);
+    console.log("onMousemove:", event);
     // const { clientX, scrollLeft, scrollTop, clientY } = this.state;
     // this._scroller.scrollLeft = scrollLeft - clientX + event.clientX;
     // this._scroller.scrollTop = scrollTop - clientY + event.clientY;
@@ -1212,6 +1228,7 @@ class App extends Component<{}, State> {
       currentSagittalNo,
     } = this.state;
     if (isValidMouseDown) {
+      console.log("valid down")
       const {
         max,
         min,
@@ -1228,6 +1245,7 @@ class App extends Component<{}, State> {
       );
 
       if (tmpWindowCenter !== undefined && tmpWindowWidth !== undefined) {
+        console.log("not undefined")
         let deltaX = event.clientX - this.clientX;
         const deltaY = this.clientY - event.clientY;
         // console.log("deltaY:", deltaY);
@@ -1247,6 +1265,7 @@ class App extends Component<{}, State> {
           useWindowCenter: newWindowCenter,
           useWindowWidth: newWindowWidth,
         });
+        console.log("before !!")
         this.renderFrame({
           image: this.currentImage,
           frameIndex: currFrameIndex,
@@ -1278,12 +1297,12 @@ class App extends Component<{}, State> {
   };
 
   getNormalizationRange(
-    useWindowWidth: number,
-    useWindowCenter: number,
+    useWindowWidth: number, // delta過的, 預設 -1 (開檔如果 >0 就 assign 給它)
+    useWindowCenter: number, // 預設 0 (開檔如果 >0 就 assign 給它)
     currNormalizeMode: number,
-    windowWidth: number | null,
-    windowCenter: number | null,
-    pixelMax: number,
+    windowWidth: number | null, //  預設 -1. 醫生存的會 assgin, 但可能是 null
+    windowCenter: number | null, //  預設 0. 
+    pixelMax: number, // 字面上的意 
     pixelMin: number
   ) {
     let max;
