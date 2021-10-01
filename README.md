@@ -1,3 +1,5 @@
+# This repo is depreciated and a new version which uses Python browser runtime is here, https://github.com/grimmer0125/embedded-pydicom-react-viewer.
+
 # DICOM Image Viewer
 
 Besides Chrome extension, web demo site: https://grimmer.io/dicom-web-viewer/
